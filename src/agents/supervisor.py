@@ -3,6 +3,7 @@ from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 from langchain_google_genai import ChatGoogleGenerativeAI
 from src.state import WaymaxState
+from src.config import load_config
 import datetime
 
 load_dotenv()
@@ -34,7 +35,7 @@ class TravelConstraints(BaseModel):
         1, description="The number of people traveling. Defaults to 1 if not explicitly stated."
     )
 
-llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash")
+llm = ChatGoogleGenerativeAI(model=load_config().llm.model)
 structured_llm = llm.with_structured_output(TravelConstraints)
 
 def supervisor_node(state: WaymaxState) -> Dict[str, Any]:
