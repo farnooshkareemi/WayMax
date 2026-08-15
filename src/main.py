@@ -1,9 +1,11 @@
+import time
 from langgraph.graph import StateGraph, END
 from langchain_core.messages import HumanMessage
 from src.state import WaymaxState
 from src.agents.supervisor import supervisor_node
 from src.agents.sourcing import sourcing_node
 from src.agents.optimization import optimizer_node # 1. Updated the import name here
+from src.metrics import new_run
 
 # Initialize workflow with State
 workflow = StateGraph(WaymaxState)
@@ -51,7 +53,20 @@ if __name__ == "__main__":
     }
 
     print("Invoking graph...")
-    final_output = app.invoke(test_state)
+    metrics = new_run()
+    start = time.perf_counter()
+    success = True
+    try:
+        final_output = app.invoke(test_state)
+    except Exception:
+        success = False
+        raise
+    finally:
+        metrics.total_duration_seconds = time.perf_counter() - start
+        metrics.success = success
+        metrics_path = metrics.write()
+        print(f"Metrics written to {metrics_path}")
+
     print("\nFinal State:")
     import pprint
     pprint.pprint(final_output)
