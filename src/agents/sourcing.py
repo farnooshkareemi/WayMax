@@ -3,25 +3,28 @@ import requests
 import re
 from datetime import datetime
 from typing import Dict, Any
-from dotenv import load_dotenv  
+from dotenv import load_dotenv
+from src.config import load_config
 
-load_dotenv()  
+load_dotenv()
 
 def sourcing_node(state: Dict[str, Any]) -> Dict[str, Any]:
     print("--- STARTING SOURCING NODE ---")
+    config = load_config().sourcing
+
     origin = state.get("origin")
     destination = state.get("destination")
     travel_dates = state.get("travel_dates")
-    
+
     # --- GRAB UI CONSTRAINTS FROM STATE ---
     min_stars = state.get("min_hotel_stars")
     direct_only = state.get("direct_only", False)
-    max_flight_hours = state.get("max_flight_hours", 30)
-    
+    max_flight_hours = state.get("max_flight_hours", config.flights.default_max_flight_hours)
+
     travelers = state.get("travelers") or 1
     raw_flight_data = []
     raw_hotel_data = []
-    nights = 1 
+    nights = 1
 
     if not all([origin, destination, travel_dates]):
         print("DEBUG: Missing constraints. Returning empty data.")
@@ -47,27 +50,27 @@ def sourcing_node(state: Dict[str, Any]) -> Dict[str, Any]:
         print(f"DEBUG: Requesting Crawlio API from {origin} to {destination} on {check_in_date} for {travelers} traveler(s)...")
         
         RAPIDAPI_KEY = os.getenv("Sky_Scanner_Key")
-        RAPIDAPI_HOST = "skyscanner-flights4.p.rapidapi.com"
-        
-        flight_url = f"https://{RAPIDAPI_HOST}/api/v1/search"
+        RAPIDAPI_HOST = config.flights.host
+
+        flight_url = config.flights.url
         querystring = {
             "origin": origin,
             "destination": destination,
-            "date": check_in_date, 
-            "limit": "20",
+            "date": check_in_date,
+            "limit": str(config.flights.request_limit),
             "adults": str(travelers),
-            "currency": "EUR",
-            "cabin": "economy",
-            "market": "IT",
-            "locale": "en-US"
+            "currency": config.flights.currency,
+            "cabin": config.flights.cabin_class,
+            "market": config.flights.market,
+            "locale": config.flights.locale
         }
-        
+
         headers = {
             "x-rapidapi-key": RAPIDAPI_KEY,
             "x-rapidapi-host": RAPIDAPI_HOST
         }
-        
-        flight_res = requests.get(flight_url, headers=headers, params=querystring, timeout=30)
+
+        flight_res = requests.get(flight_url, headers=headers, params=querystring, timeout=config.flights.timeout_seconds)
         flight_res.raise_for_status()
         data = flight_res.json()
 
@@ -90,8 +93,8 @@ def sourcing_node(state: Dict[str, Any]) -> Dict[str, Any]:
                                 itineraries = sub_value
                                 break
 
-        for itin in itineraries: 
-            if len(raw_flight_data) >= 5:
+        for itin in itineraries:
+            if len(raw_flight_data) >= config.flights.result_limit:
                 break
                 
             legs = itin.get("legs", [])
@@ -165,15 +168,15 @@ def sourcing_node(state: Dict[str, Any]) -> Dict[str, Any]:
     # -----------------------------------------
     try:
         hotel_headers = {
-            "x-rapidapi-key": os.getenv("Sky_Scanner_Key"), 
-            "x-rapidapi-host": "booking-data.p.rapidapi.com"
+            "x-rapidapi-key": os.getenv("Sky_Scanner_Key"),
+            "x-rapidapi-host": config.hotels.host
         }
-        
+
         # --- HYBRID MAPPING STRATEGY ---
         import json
         LOCAL_DEST_MAP = {}
         try:
-            with open("cities.json", "r") as f:
+            with open(config.hotels.cities_cache_path, "r") as f:
                 LOCAL_DEST_MAP = json.load(f)
         except Exception as e:
             print(f"DEBUG: Failed to load cities.json cache: {e}")
@@ -186,11 +189,11 @@ def sourcing_node(state: Dict[str, Any]) -> Dict[str, Any]:
             print(f"DEBUG: Local cache hit! '{destination}' resolved to {dest_id}")
         else:
             print(f"DEBUG: Cache miss for '{destination}'. Calling Autocomplete API...")
-            auto_url = "https://booking-data.p.rapidapi.com/booking-app/search/auto-complete"
+            auto_url = config.hotels.autocomplete_url
             auto_query = {"query": destination}
-            
+
             try:
-                auto_res = requests.get(auto_url, headers=hotel_headers, params=auto_query, timeout=15)
+                auto_res = requests.get(auto_url, headers=hotel_headers, params=auto_query, timeout=config.hotels.autocomplete_timeout_seconds)
                 auto_res.raise_for_status()
                 auto_data = auto_res.json()
                 
@@ -215,20 +218,20 @@ def sourcing_node(state: Dict[str, Any]) -> Dict[str, Any]:
         else:
             print(f"DEBUG: Requesting Booking Data API for {destination} stays... (Min Stars: {min_stars})")
             
-            hotel_url = "https://booking-data.p.rapidapi.com/booking-app/search/by-dest"
+            hotel_url = config.hotels.search_url
             hotel_query = {
                 "dest_id": dest_id,
                 "dest_type": dest_type,
-                "units": "metric",
-                "temperature_unit": "c",
+                "units": config.hotels.units,
+                "temperature_unit": config.hotels.temperature_unit,
                 "arrival_date": check_in_date,
                 "departure_date": check_out_date,
                 "adults": str(travelers),
-                "room_qty": "1",
-                "currency_code": "EUR"
+                "room_qty": str(config.hotels.room_qty),
+                "currency_code": config.hotels.currency
             }
-            
-            hotel_res = requests.get(hotel_url, headers=hotel_headers, params=hotel_query, timeout=30)
+
+            hotel_res = requests.get(hotel_url, headers=hotel_headers, params=hotel_query, timeout=config.hotels.search_timeout_seconds)
             hotel_res.raise_for_status()
             hotel_json = hotel_res.json()
             
@@ -241,7 +244,7 @@ def sourcing_node(state: Dict[str, Any]) -> Dict[str, Any]:
 
             # --- FILTER HOTELS DYNAMICALLY ---
             for prop in properties:
-                if len(raw_hotel_data) >= 5:
+                if len(raw_hotel_data) >= config.hotels.result_limit:
                     break
                     
                 hotel_stars = prop.get("propertyClass", 0)
