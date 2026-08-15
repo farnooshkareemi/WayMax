@@ -2,6 +2,7 @@ from typing import Dict, Any
 from datetime import datetime
 import re
 import math
+from src.config import load_config
 
 def optimizer_node(state: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -9,19 +10,21 @@ def optimizer_node(state: Dict[str, Any]) -> Dict[str, Any]:
     within the user's budget, accurately calculating the duration of the stay and rooms needed.
     """
     print("--- STARTING OPTIMIZER NODE ---")
-    
+
+    config = load_config().optimizer
+
     max_budget = state.get("max_budget")
     raw_flight_data = state.get("raw_flight_data", [])
     raw_hotel_data = state.get("raw_hotel_data", [])
     travel_dates = state.get("travel_dates", "")
-    
+
     # --- NEW: Grab travelers to calculate hotel rooms ---
     travelers = state.get("travelers") or 1
-    # Assuming 2 people per room, we round up (e.g., 3 people = 2 rooms)
-    rooms_needed = math.ceil(travelers / 2)
+    # Assuming N people per room (config-driven), we round up (e.g., 3 people = 2 rooms)
+    rooms_needed = math.ceil(travelers / config.rooms_per_traveler_divisor)
 
     # 1. Parse dates to calculate the total number of nights
-    num_nights = 1  # Default to 1 night as a safe fallback
+    num_nights = config.default_nights_fallback  # Default fallback if parsing fails
     if travel_dates:
         dates = re.findall(r'\d{4}-\d{2}-\d{2}', travel_dates)
         if len(dates) >= 2:
