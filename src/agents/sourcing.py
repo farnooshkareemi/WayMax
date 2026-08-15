@@ -5,12 +5,18 @@ from datetime import datetime
 from typing import Dict, Any
 from dotenv import load_dotenv
 from src.config import load_config
+from src.metrics import get_current_run, node_timer
 
 load_dotenv()
 
 def sourcing_node(state: Dict[str, Any]) -> Dict[str, Any]:
     print("--- STARTING SOURCING NODE ---")
     config = load_config().sourcing
+
+    run_metrics = get_current_run()
+    timer = node_timer(run_metrics, "sourcing") if run_metrics else None
+    if timer:
+        timer.__enter__()
 
     origin = state.get("origin")
     destination = state.get("destination")
@@ -28,12 +34,14 @@ def sourcing_node(state: Dict[str, Any]) -> Dict[str, Any]:
 
     if not all([origin, destination, travel_dates]):
         print("DEBUG: Missing constraints. Returning empty data.")
+        if timer:
+            timer.__exit__(None, None, None)
         return {"raw_flight_data": raw_flight_data, "raw_hotel_data": raw_hotel_data, "next_node": "end"}
 
     try:
         check_in_date = travel_dates.split(" to ")[0].strip()
-        check_out_date = travel_dates.split(" to ")[1].strip() 
-        
+        check_out_date = travel_dates.split(" to ")[1].strip()
+
         d1 = datetime.strptime(check_in_date, "%Y-%m-%d")
         d2 = datetime.strptime(check_out_date, "%Y-%m-%d")
         nights = (d2 - d1).days
@@ -41,6 +49,8 @@ def sourcing_node(state: Dict[str, Any]) -> Dict[str, Any]:
             nights = 1
     except Exception as e:
         print(f"DEBUG: Date parsing error: {e}")
+        if timer:
+            timer.__exit__(None, None, None)
         return {"raw_flight_data": raw_flight_data, "raw_hotel_data": raw_hotel_data, "next_node": "end"}
 
     # -----------------------------------------
@@ -159,9 +169,19 @@ def sourcing_node(state: Dict[str, Any]) -> Dict[str, Any]:
             })
             
         print(f"DEBUG: Successfully parsed {len(raw_flight_data)} live Skyscanner flights!")
-        
+
+        if run_metrics:
+            run_metrics.add_api_call(
+                "flights_search", ok=True,
+                status_code=flight_res.status_code,
+                results_returned=len(raw_flight_data),
+            )
+
     except Exception as e:
         print(f"DEBUG: RapidAPI Flight Exception: {e}")
+        if run_metrics:
+            status_code = getattr(getattr(e, "response", None), "status_code", None)
+            run_metrics.add_api_call("flights_search", ok=False, status_code=status_code)
 
     # -----------------------------------------
     # 2. RAPIDAPI BOOKING DATA (HOTELS)
@@ -184,9 +204,11 @@ def sourcing_node(state: Dict[str, Any]) -> Dict[str, Any]:
         dest_key = str(destination).strip().upper()
         dest_id = LOCAL_DEST_MAP.get(dest_key)
         dest_type = "city"
-        
+
         if dest_id:
             print(f"DEBUG: Local cache hit! '{destination}' resolved to {dest_id}")
+            if run_metrics:
+                run_metrics.add_api_call("hotels_dest_lookup", ok=True, cache_hit=True)
         else:
             print(f"DEBUG: Cache miss for '{destination}'. Calling Autocomplete API...")
             auto_url = config.hotels.autocomplete_url
@@ -196,7 +218,7 @@ def sourcing_node(state: Dict[str, Any]) -> Dict[str, Any]:
                 auto_res = requests.get(auto_url, headers=hotel_headers, params=auto_query, timeout=config.hotels.autocomplete_timeout_seconds)
                 auto_res.raise_for_status()
                 auto_data = auto_res.json()
-                
+
                 results = auto_data.get("data", auto_data.get("result", []))
                 if isinstance(results, list) and len(results) > 0:
                     for item in results:
@@ -206,11 +228,19 @@ def sourcing_node(state: Dict[str, Any]) -> Dict[str, Any]:
                             break
                     if not dest_id:
                         dest_id = results[0].get("dest_id", results[0].get("id"))
-                
+
                 if dest_id:
                     print(f"DEBUG: Autocomplete resolved '{destination}' to {dest_id}")
+                if run_metrics:
+                    run_metrics.add_api_call(
+                        "hotels_dest_lookup", ok=True,
+                        status_code=auto_res.status_code, cache_hit=False,
+                    )
             except Exception as e:
                 print(f"DEBUG: Autocomplete API failed: {e}")
+                if run_metrics:
+                    status_code = getattr(getattr(e, "response", None), "status_code", None)
+                    run_metrics.add_api_call("hotels_dest_lookup", ok=False, status_code=status_code, cache_hit=False)
 
         # --- EXECUTE HOTEL SEARCH ---
         if not dest_id:
@@ -274,8 +304,21 @@ def sourcing_node(state: Dict[str, Any]) -> Dict[str, Any]:
                     
             print(f"DEBUG: Successfully parsed {len(raw_hotel_data)} live Booking.com hotels!")
 
+            if run_metrics:
+                run_metrics.add_api_call(
+                    "hotels_search", ok=True,
+                    status_code=hotel_res.status_code,
+                    results_returned=len(raw_hotel_data),
+                )
+
     except Exception as e:
         print(f"DEBUG: RapidAPI Hotel Exception: {e}")
+        if run_metrics:
+            status_code = getattr(getattr(e, "response", None), "status_code", None)
+            run_metrics.add_api_call("hotels_search", ok=False, status_code=status_code)
+
+    if timer:
+        timer.__exit__(None, None, None)
 
     return {
         "raw_flight_data": raw_flight_data,
