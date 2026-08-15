@@ -1,0 +1,188 @@
+# WayMax configuration
+# Non-secret, reproducible tunables only. API keys (GOOGLE_API_KEY, Sky_Scanner_Key)
+# stay in .env — never put secrets in this file.
+
+llm:
+  model: "gemini-2.5-flash"
+
+sourcing:
+  flights:
+    host: "skyscanner-flights4.p.rapidapi.com"
+    url: "https://skyscanner-flights4.p.rapidapi.com/api/v1/search"
+    timeout_seconds: 30
+    result_limit: 5
+    currency: "EUR"
+    cabin_class: "economy"
+    market: "IT"
+    locale: "en-US"
+    request_limit: 20          # "limit" query param sent to the API
+    default_max_flight_hours: 30
+
+  hotels:
+    host: "booking-data.p.rapidapi.com"
+    autocomplete_url: "https://booking-data.p.rapidapi.com/booking-app/search/auto-complete"
+    search_url: "https://booking-data.p.rapidapi.com/booking-app/search/by-dest"
+    autocomplete_timeout_seconds: 15
+    search_timeout_seconds: 30
+    result_limit: 5
+    units: "metric"
+    temperature_unit: "c"
+    room_qty: 1
+    currency: "EUR"
+    cities_cache_path: "cities.json"
+
+optimizer:
+  rooms_per_traveler_divisor: 2   # ceil(travelers / this) = rooms needed
+  default_nights_fallback: 1
+
+ui:
+  page_title: "WayMax"
+  page_icon: "✈️"
+  layout: "centered"
+  currencies:
+    - "€ EUR"
+    - "$ USD"
+    - "£ GBP"
+    - "¥ JPY"
+    - "C$ CAD"
+    - "A$ AUD"
+    - "CHF CHF"
+    - "¥ CNY"
+    - "₹ INR"
+    - "R$ BRL"
+    - "د.إ AED"
+  budget:
+    min: 100
+    max: 20000
+    default: 1000
+    step: 50
+  travelers:
+    min: 1
+    max: 10
+    default: 1
+    step: 1
+  min_hotel_stars_default: 3
+  max_flight_hours:
+    min: 1
+    max: 30
+    default: 10
+
+build_dictionary:
+  autocomplete_url: "https://booking-data.p.rapidapi.com/booking-app/search/auto-complete"
+  host: "booking-data.p.rapidapi.com"
+  request_timeout_seconds: 15
+  sleep_between_calls_seconds: 1.5
+  output_path: "cities.json"
+  top_cities:
+    # Europe
+    - "Paris"
+    - "London"
+    - "Rome"
+    - "Milan"
+    - "Turin"
+    - "Venice"
+    - "Florence"
+    - "Naples"
+    - "Barcelona"
+    - "Madrid"
+    - "Amsterdam"
+    - "Berlin"
+    - "Munich"
+    - "Frankfurt"
+    - "Vienna"
+    - "Zurich"
+    - "Geneva"
+    - "Athens"
+    - "Lisbon"
+    - "Prague"
+    - "Budapest"
+    - "Dublin"
+    - "Edinburgh"
+    - "Stockholm"
+    - "Copenhagen"
+    - "Oslo"
+    - "Helsinki"
+    - "Warsaw"
+    - "Krakow"
+    - "Brussels"
+    - "Nice"
+    - "Marseille"
+    - "Lyon"
+    # Asia
+    - "Tokyo"
+    - "Kyoto"
+    - "Osaka"
+    - "Seoul"
+    - "Singapore"
+    - "Bangkok"
+    - "Phuket"
+    - "Hong Kong"
+    - "Macau"
+    - "Taipei"
+    - "Beijing"
+    - "Shanghai"
+    - "Guangzhou"
+    - "Kuala Lumpur"
+    - "Ho Chi Minh City"
+    - "Hanoi"
+    - "Manila"
+    - "Jakarta"
+    - "Bali"
+    - "Mumbai"
+    - "Delhi"
+    - "Jaipur"
+    - "Chennai"
+    - "Colombo"
+    - "Kathmandu"
+    - "Tehran"
+    # Middle East & Africa
+    - "Dubai"
+    - "Abu Dhabi"
+    - "Istanbul"
+    - "Antalya"
+    - "Doha"
+    - "Riyadh"
+    - "Mecca"
+    - "Medina"
+    - "Tel Aviv"
+    - "Jerusalem"
+    - "Cairo"
+    - "Marrakech"
+    - "Casablanca"
+    - "Cape Town"
+    - "Johannesburg"
+    - "Nairobi"
+    # North America
+    - "New York"
+    - "Los Angeles"
+    - "Miami"
+    - "San Francisco"
+    - "Las Vegas"
+    - "Chicago"
+    - "Washington D.C."
+    - "Boston"
+    - "Seattle"
+    - "Honolulu"
+    - "Orlando"
+    - "New Orleans"
+    - "Toronto"
+    - "Vancouver"
+    - "Montreal"
+    - "Cancun"
+    - "Mexico City"
+    # South America
+    - "Rio de Janeiro"
+    - "Sao Paulo"
+    - "Buenos Aires"
+    - "Lima"
+    - "Bogota"
+    - "Santiago"
+    - "Cusco"
+    - "Quito"
+    # Oceania
+    - "Sydney"
+    - "Melbourne"
+    - "Brisbane"
+    - "Perth"
+    - "Auckland"
+    - "Queenstown"
