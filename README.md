@@ -28,3 +28,46 @@ The system uses Retrieval-Augmented Generation to account for non-API costs:
 1. Low-Cost Airline Baggage Policies.
 2. Local Tourist Tax Frameworks.
 3. Public Transit Manuals.
+
+## Installation
+
+```bash
+git clone https://github.com/<your-username>/waymax.git
+cd waymax
+pip install -e .[dev]
+```
+
+This installs WayMax and its runtime dependencies (LangGraph, LangChain, Streamlit, etc.)
+plus the `dev` extra (`pytest`, `responses`) needed to run the test suite.
+
+## Configuration
+
+Non-secret tunables (LLM model name, API hosts/timeouts, result caps, UI defaults, etc.)
+live in [`config/config.yaml`](config/config.yaml) and are loaded through `src/config.py`.
+Secrets go in a `.env` file at the repo root (not committed):
+
+```
+GOOGLE_API_KEY=your-google-api-key
+Sky_Scanner_Key=your-rapidapi-key
+```
+
+## Running
+
+```bash
+# Run the LangGraph pipeline against a hardcoded test trip
+python -m src.main
+
+# Run the Streamlit UI
+streamlit run src/ui/app.py
+
+# Rebuild the local city-name -> Booking.com dest_id cache
+python build_dictionary.py
+```
+
+## Testing
+
+```bash
+pytest tests/ -v
+```
+
+All tests run offline against mocked API/LLM responses — no API keys required.
