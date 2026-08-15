@@ -80,11 +80,23 @@ class RunMetrics(BaseModel):
         return path
 
 
+_current_run: Optional[RunMetrics] = None
+
+
 def new_run() -> RunMetrics:
-    """Start a fresh RunMetrics with a timestamp-based run_id."""
+    """Start a fresh RunMetrics with a timestamp-based run_id and make it the
+    current run for get_current_run()/node instrumentation to attach to."""
+    global _current_run
     now = datetime.now(timezone.utc)
     run_id = now.strftime("%Y%m%dT%H%M%S%fZ")
-    return RunMetrics(run_id=run_id, timestamp=now.isoformat())
+    _current_run = RunMetrics(run_id=run_id, timestamp=now.isoformat())
+    return _current_run
+
+
+def get_current_run() -> Optional[RunMetrics]:
+    """Return the RunMetrics started by the most recent new_run() call, or None
+    if no run is in progress (e.g. a node was called standalone/in a test)."""
+    return _current_run
 
 
 class node_timer:

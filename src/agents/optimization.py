@@ -3,6 +3,7 @@ from datetime import datetime
 import re
 import math
 from src.config import load_config
+from src.metrics import get_current_run, node_timer
 
 def optimizer_node(state: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -10,6 +11,11 @@ def optimizer_node(state: Dict[str, Any]) -> Dict[str, Any]:
     within the user's budget, accurately calculating the duration of the stay and rooms needed.
     """
     print("--- STARTING OPTIMIZER NODE ---")
+
+    run_metrics = get_current_run()
+    timer = node_timer(run_metrics, "optimizer") if run_metrics else None
+    if timer:
+        timer.__enter__()
 
     config = load_config().optimizer
 
@@ -39,6 +45,7 @@ def optimizer_node(state: Dict[str, Any]) -> Dict[str, Any]:
 
     best_combination = None
     lowest_total_price = float("inf")
+    combinations_evaluated = 0
 
     # If max_budget is not set, treat it as infinite for optimization purposes
     budget_limit = float(max_budget) if max_budget is not None else float("inf")
@@ -46,6 +53,7 @@ def optimizer_node(state: Dict[str, Any]) -> Dict[str, Any]:
     # 2. Iterate through options to find the best valid combination
     for flight in raw_flight_data:
         for hotel in raw_hotel_data:
+            combinations_evaluated += 1
             # Flight price is already the total for ALL passengers from the Duffel API
             flight_price = flight.get("price", 0.0)
             hotel_nightly_rate = hotel.get("price_per_night", hotel.get("price", 0.0))
@@ -96,6 +104,15 @@ def optimizer_node(state: Dict[str, Any]) -> Dict[str, Any]:
         print(f"DEBUG: --> Selected Hotel: {best_combination['hotel'].get('name', 'N/A')} located at {best_combination['hotel'].get('address', 'N/A')}")
     else:
         print("DEBUG: Optimizer failed to find any valid combinations.")
+
+    if run_metrics:
+        run_metrics.set_optimizer_quality(
+            combinations_evaluated=combinations_evaluated,
+            best_total_price=best_combination.get("total_price") if best_combination else None,
+            within_budget=best_combination.get("within_budget") if best_combination else None,
+        )
+    if timer:
+        timer.__exit__(None, None, None)
 
     return {
         "final_itinerary": best_combination,
