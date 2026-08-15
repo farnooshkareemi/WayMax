@@ -3,60 +3,31 @@ import time
 import json
 import requests
 from dotenv import load_dotenv
+from src.config import load_config
 
 # Load your RapidAPI key from your .env file
 load_dotenv()
 
+config = load_config().build_dictionary
+
 RAPIDAPI_KEY = os.getenv("Sky_Scanner_Key")
 HEADERS = {
     "x-rapidapi-key": RAPIDAPI_KEY,
-    "x-rapidapi-host": "booking-data.p.rapidapi.com"
+    "x-rapidapi-host": config.host
 }
-URL = "https://booking-data.p.rapidapi.com/booking-app/search/auto-complete"
-
-# --- THE ULTIMATE 100+ GLOBAL CITIES LIST ---
-TOP_CITIES = [
-    # Europe
-    "Paris", "London", "Rome", "Milan", "Turin", "Venice", "Florence", "Naples",
-    "Barcelona", "Madrid", "Amsterdam", "Berlin", "Munich", "Frankfurt", "Vienna",
-    "Zurich", "Geneva", "Athens", "Lisbon", "Prague", "Budapest", "Dublin",
-    "Edinburgh", "Stockholm", "Copenhagen", "Oslo", "Helsinki", "Warsaw", "Krakow",
-    "Brussels", "Nice", "Marseille", "Lyon",
-    
-    # Asia
-    "Tokyo", "Kyoto", "Osaka", "Seoul", "Singapore", "Bangkok", "Phuket",
-    "Hong Kong", "Macau", "Taipei", "Beijing", "Shanghai", "Guangzhou",
-    "Kuala Lumpur", "Ho Chi Minh City", "Hanoi", "Manila", "Jakarta", "Bali",
-    "Mumbai", "Delhi", "Jaipur", "Chennai", "Colombo", "Kathmandu", "Tehran",
-    
-    # Middle East & Africa
-    "Dubai", "Abu Dhabi", "Istanbul", "Antalya", "Doha", "Riyadh", "Mecca",
-    "Medina", "Tel Aviv", "Jerusalem", "Cairo", "Marrakech", "Casablanca",
-    "Cape Town", "Johannesburg", "Nairobi",
-    
-    # North America
-    "New York", "Los Angeles", "Miami", "San Francisco", "Las Vegas", "Chicago",
-    "Washington D.C.", "Boston", "Seattle", "Honolulu", "Orlando", "New Orleans",
-    "Toronto", "Vancouver", "Montreal", "Cancun", "Mexico City",
-    
-    # South America
-    "Rio de Janeiro", "Sao Paulo", "Buenos Aires", "Lima", "Bogota", "Santiago",
-    "Cusco", "Quito",
-    
-    # Oceania
-    "Sydney", "Melbourne", "Brisbane", "Perth", "Auckland", "Queenstown"
-]
+URL = config.autocomplete_url
+TOP_CITIES = config.top_cities
 
 def mine_city_ids():
     city_map = {}
-    
+
     print(f"🚀 Starting Miner for {len(TOP_CITIES)} cities...\n")
-    
+
     for city in TOP_CITIES:
         print(f"Searching for {city}...")
-        
+
         try:
-            response = requests.get(URL, headers=HEADERS, params={"query": city}, timeout=15)
+            response = requests.get(URL, headers=HEADERS, params={"query": city}, timeout=config.request_timeout_seconds)
             response.raise_for_status()
             data = response.json()
             
@@ -83,15 +54,15 @@ def mine_city_ids():
         except Exception as e:
             print(f"   ⚠️ API Error: {e}")
             
-        # VERY IMPORTANT: Sleep for 1.5 seconds between calls so RapidAPI 
+        # VERY IMPORTANT: Sleep between calls so RapidAPI
         # doesn't block you for sending too many requests too fast (HTTP 429).
-        time.sleep(1.5)
+        time.sleep(config.sleep_between_calls_seconds)
 
     # Save the results to a JSON file
-    with open("cities.json", "w") as f:
+    with open(config.output_path, "w") as f:
         json.dump(city_map, f, indent=4)
-        
-    print(f"\n🎉 Done! Successfully mapped {len(city_map)} cities to 'cities.json'.")
+
+    print(f"\n🎉 Done! Successfully mapped {len(city_map)} cities to '{config.output_path}'.")
 
 if __name__ == "__main__":
     mine_city_ids()
