@@ -24,8 +24,11 @@ root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 if root_dir not in sys.path:
     sys.path.insert(0, root_dir)
 
+from src.config import load_config
+ui_config = load_config().ui
+
 # 3. Streamlit Page Config
-st.set_page_config(page_title="WayMax", page_icon="✈️", layout="centered") 
+st.set_page_config(page_title=ui_config.page_title, page_icon=ui_config.page_icon, layout=ui_config.layout)
 
 # --- BACKGROUND IMAGE CSS ---
 st.markdown("""
@@ -57,13 +60,10 @@ with st.spinner("Initializing WayMax Engine..."):
     app = load_graph()
 
 # --- SUPPORTING DATA ---
-CURRENCIES = [
-    "€ EUR", "$ USD", "£ GBP", "¥ JPY", "C$ CAD", 
-    "A$ AUD", "CHF CHF", "¥ CNY", "₹ INR", "R$ BRL", "د.إ AED"
-]
+CURRENCIES = ui_config.currencies
 
 # --- MAIN PAGE ---
-st.title("✈️ WayMax")
+st.title(f"{ui_config.page_icon} {ui_config.page_title}")
 st.caption("AI-powered travel planning and itinerary optimization")
 st.write("") 
 
@@ -90,13 +90,25 @@ with col5:
 with col6:
     currency_symbol = currency_input.split(" ")[0] if currency_input else ""
     budget_label = f"Budget ({currency_symbol})" if currency_symbol else "Budget"
-    budget_input = st.number_input(budget_label, min_value=100, max_value=20000, value=1000, step=50)
+    budget_input = st.number_input(
+        budget_label,
+        min_value=ui_config.budget.min,
+        max_value=ui_config.budget.max,
+        value=ui_config.budget.default,
+        step=ui_config.budget.step,
+    )
 with col7:
-    travelers_input = st.number_input("Travelers", min_value=1, max_value=10, value=1, step=1)
+    travelers_input = st.number_input(
+        "Travelers",
+        min_value=ui_config.travelers.min,
+        max_value=ui_config.travelers.max,
+        value=ui_config.travelers.default,
+        step=ui_config.travelers.step,
+    )
 with col8:
     st.write("Min Hotel Stars")
     raw_stars = st.feedback("stars", key="min_stars")
-    stars_input = (raw_stars + 1) if raw_stars is not None else 3
+    stars_input = (raw_stars + 1) if raw_stars is not None else ui_config.min_hotel_stars_default
 
 st.write("")
 
@@ -106,7 +118,12 @@ col_f1, col_f2 = st.columns(2)
 with col_f1:
     direct_flights_input = st.checkbox("✈️ Direct Flights Only (No Layovers)", value=False)
 with col_f2:
-    max_flight_hours = st.slider("⏳ Max Flight Duration (Hours)", min_value=1, max_value=30, value=10)
+    max_flight_hours = st.slider(
+        "⏳ Max Flight Duration (Hours)",
+        min_value=ui_config.max_flight_hours.min,
+        max_value=ui_config.max_flight_hours.max,
+        value=ui_config.max_flight_hours.default,
+    )
 
 submit_button = st.button("Plan My Trip", use_container_width=True, type="primary")
 st.divider()
