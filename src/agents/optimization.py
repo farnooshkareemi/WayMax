@@ -57,10 +57,14 @@ def optimizer_node(state: Dict[str, Any]) -> Dict[str, Any]:
             # Flight price is already the total for ALL passengers from the Duffel API
             flight_price = flight.get("price", 0.0)
             hotel_nightly_rate = hotel.get("price_per_night", hotel.get("price", 0.0))
-            
+
+            # --- RAG: one checked bag per traveler, using the RAG-estimated fee ---
+            baggage_fee_per_bag = flight.get("baggage_fee_estimate", 0.0)
+            total_baggage_cost = baggage_fee_per_bag * travelers
+
             # --- NEW: Calculate true total price based on duration AND rooms needed ---
             total_hotel_price = hotel_nightly_rate * num_nights * rooms_needed
-            total_price = flight_price + total_hotel_price
+            total_price = flight_price + total_hotel_price + total_baggage_cost
 
             if total_price <= budget_limit:
                 if total_price < lowest_total_price:
@@ -71,6 +75,7 @@ def optimizer_node(state: Dict[str, Any]) -> Dict[str, Any]:
                         "nights_staying": num_nights,
                         "flight_cost": flight_price,
                         "hotel_total_cost": total_hotel_price,
+                        "baggage_cost": total_baggage_cost,
                         "total_price": round(total_price, 2),
                         "within_budget": True
                     }
@@ -79,13 +84,14 @@ def optimizer_node(state: Dict[str, Any]) -> Dict[str, Any]:
     if not best_combination and raw_flight_data and raw_hotel_data:
         cheapest_flight = min(raw_flight_data, key=lambda x: x.get("price", 0.0))
         cheapest_hotel = min(raw_hotel_data, key=lambda x: x.get("price_per_night", x.get("price", 0.0)))
-        
+
         f_price = cheapest_flight.get("price", 0.0)
         h_rate = cheapest_hotel.get("price_per_night", cheapest_hotel.get("price", 0.0))
-        
-        # Apply the same rooms_needed logic to the fallback
+
+        # Apply the same rooms_needed and baggage logic to the fallback
         fallback_hotel_total = h_rate * num_nights * rooms_needed
-        total_p = f_price + fallback_hotel_total
+        fallback_baggage_total = cheapest_flight.get("baggage_fee_estimate", 0.0) * travelers
+        total_p = f_price + fallback_hotel_total + fallback_baggage_total
 
         best_combination = {
             "flight": cheapest_flight,
@@ -93,6 +99,7 @@ def optimizer_node(state: Dict[str, Any]) -> Dict[str, Any]:
             "nights_staying": num_nights,
             "flight_cost": f_price,
             "hotel_total_cost": fallback_hotel_total,
+            "baggage_cost": fallback_baggage_total,
             "total_price": round(total_p, 2),
             "within_budget": False
         }
