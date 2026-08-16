@@ -212,6 +212,14 @@ def sourcing_node(state: Dict[str, Any]) -> Dict[str, Any]:
 
                 if dest_id:
                     print(f"DEBUG: Autocomplete resolved '{dest_query_name}' to {dest_id}")
+                    # Grow the local cache so this destination is a hit next time,
+                    # instead of relying on a fixed, pre-mined city list.
+                    try:
+                        LOCAL_DEST_MAP[dest_key] = str(dest_id)
+                        with open(config.hotels.cities_cache_path, "w") as f:
+                            json.dump(LOCAL_DEST_MAP, f, indent=4)
+                    except Exception as e:
+                        print(f"DEBUG: Failed to persist cities.json cache: {e}")
                 if run_metrics:
                     run_metrics.add_api_call(
                         "hotels_dest_lookup", ok=True,
