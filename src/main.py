@@ -4,6 +4,7 @@ from langchain_core.messages import HumanMessage
 from src.state import WaymaxState
 from src.agents.supervisor import supervisor_node
 from src.agents.sourcing import sourcing_node
+from src.agents.rag import rag_node
 from src.agents.optimization import optimizer_node # 1. Updated the import name here
 from src.metrics import new_run
 
@@ -13,6 +14,7 @@ workflow = StateGraph(WaymaxState)
 # Add nodes
 workflow.add_node("supervisor", supervisor_node)
 workflow.add_node("sourcing", sourcing_node)
+workflow.add_node("rag", rag_node)
 workflow.add_node("optimization", optimizer_node) # 2. Updated the function name here
 
 # Set entry point
@@ -28,8 +30,9 @@ workflow.add_conditional_edges(
     }
 )
 
-# 3. Edge from sourcing to optimization
-workflow.add_edge("sourcing", "optimization")
+# 3. Edge from sourcing to rag to optimization
+workflow.add_edge("sourcing", "rag")
+workflow.add_edge("rag", "optimization")
 
 # 4. Edge from optimization to END
 workflow.add_edge("optimization", END)

@@ -14,7 +14,7 @@ class WaymaxState(TypedDict):
     min_hotel_stars: Optional[int]    # <-- NEW: Added this to enforce the UI star rating filter!
     direct_only: Optional[bool]
     max_flight_hours: Optional[int]
-    raw_flight_data: List[dict]
+    raw_flight_data: List[dict]  # each dict gains "baggage_fee_estimate" after the rag node runs
     raw_hotel_data: List[dict]
     final_itinerary: Optional[dict]
     next_node: str
