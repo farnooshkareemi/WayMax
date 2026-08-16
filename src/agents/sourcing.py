@@ -178,18 +178,22 @@ def sourcing_node(state: Dict[str, Any]) -> Dict[str, Any]:
         except Exception as e:
             print(f"DEBUG: Failed to load cities.json cache: {e}")
         
-        dest_key = str(destination).strip().upper()
+        # Booking.com's dest_id is keyed by city name, not IATA airport code -
+        # always resolve using destination_city, falling back to destination
+        # only if the LLM extraction didn't populate it.
+        dest_query_name = state.get("destination_city") or destination
+        dest_key = str(dest_query_name).strip().upper()
         dest_id = LOCAL_DEST_MAP.get(dest_key)
         dest_type = "city"
 
         if dest_id:
-            print(f"DEBUG: Local cache hit! '{destination}' resolved to {dest_id}")
+            print(f"DEBUG: Local cache hit! '{dest_query_name}' resolved to {dest_id}")
             if run_metrics:
                 run_metrics.add_api_call("hotels_dest_lookup", ok=True, cache_hit=True)
         else:
-            print(f"DEBUG: Cache miss for '{destination}'. Calling Autocomplete API...")
+            print(f"DEBUG: Cache miss for '{dest_query_name}'. Calling Autocomplete API...")
             auto_url = config.hotels.autocomplete_url
-            auto_query = {"query": destination}
+            auto_query = {"query": dest_query_name}
 
             try:
                 auto_res = requests.get(auto_url, headers=hotel_headers, params=auto_query, timeout=config.hotels.autocomplete_timeout_seconds)
@@ -207,7 +211,7 @@ def sourcing_node(state: Dict[str, Any]) -> Dict[str, Any]:
                         dest_id = results[0].get("dest_id", results[0].get("id"))
 
                 if dest_id:
-                    print(f"DEBUG: Autocomplete resolved '{destination}' to {dest_id}")
+                    print(f"DEBUG: Autocomplete resolved '{dest_query_name}' to {dest_id}")
                 if run_metrics:
                     run_metrics.add_api_call(
                         "hotels_dest_lookup", ok=True,
