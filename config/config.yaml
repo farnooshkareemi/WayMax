@@ -35,6 +35,12 @@ optimizer:
   rooms_per_traveler_divisor: 2   # ceil(travelers / this) = rooms needed
   default_nights_fallback: 1
 
+rag:
+  embedding_model: "all-MiniLM-L6-v2"
+  persist_directory: "src/rag/.chroma"
+  collection_name: "baggage_fees"
+  top_k: 1   # number of matching documents to retrieve per airline query
+
 ui:
   page_title: "WayMax"
   page_icon: "✈️"

@@ -60,6 +60,13 @@ class OptimizerConfig(BaseModel):
     default_nights_fallback: int
 
 
+class RAGConfig(BaseModel):
+    embedding_model: str
+    persist_directory: str
+    collection_name: str
+    top_k: int
+
+
 class RangeConfig(BaseModel):
     min: int
     max: int
@@ -91,6 +98,7 @@ class WaymaxConfig(BaseModel):
     llm: LLMConfig
     sourcing: SourcingConfig
     optimizer: OptimizerConfig
+    rag: RAGConfig
     ui: UIConfig
     build_dictionary: BuildDictionaryConfig
 
