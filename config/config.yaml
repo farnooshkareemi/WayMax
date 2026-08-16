@@ -9,6 +9,7 @@ sourcing:
   flights:
     host: "skyscanner-flights4.p.rapidapi.com"
     url: "https://skyscanner-flights4.p.rapidapi.com/api/v1/search"
+    roundtrip_url: "https://skyscanner-flights4.p.rapidapi.com/api/v1/roundtrip"
     timeout_seconds: 30
     result_limit: 5
     currency: "EUR"

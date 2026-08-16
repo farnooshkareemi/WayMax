@@ -26,6 +26,7 @@ class LLMConfig(BaseModel):
 class FlightsConfig(BaseModel):
     host: str
     url: str
+    roundtrip_url: str
     timeout_seconds: int
     result_limit: int
     currency: str
