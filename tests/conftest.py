@@ -28,22 +28,30 @@ def reset_metrics_run():
 
 @pytest.fixture
 def mock_flight_response():
-    """A RapidAPI Skyscanner-shaped response with a single direct itinerary."""
+    """A RapidAPI Skyscanner roundtrip-shaped response with a single direct itinerary."""
     resp = MagicMock(status_code=200)
     resp.raise_for_status = lambda: None
     resp.json = lambda: {
-        "itineraries": [
+        "results": [
             {
+                "price_raw": 200,
+                "carriers": ["TestAir"],
                 "legs": [
                     {
-                        "dep": "2026-09-20T10:00",
-                        "arr": "2026-09-20T12:00",
-                        "duration": 120,
+                        "dep": "2026-09-20T10:00:00",
+                        "arr": "2026-09-20T12:00:00",
+                        "dur_min": 120,
+                        "stops": 0,
                         "segments": [{"flight": "AB123"}],
-                    }
+                    },
+                    {
+                        "dep": "2026-09-25T14:00:00",
+                        "arr": "2026-09-25T16:00:00",
+                        "dur_min": 120,
+                        "stops": 0,
+                        "segments": [{"flight": "AB456"}],
+                    },
                 ],
-                "price": {"amount": 200},
-                "carriers": [{"name": "TestAir"}],
             }
         ]
     }

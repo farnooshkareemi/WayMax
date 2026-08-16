@@ -43,12 +43,12 @@ def test_happy_path_parses_flights_and_hotels(mock_requests_get):
     assert out["next_node"] == "optimizer"
 
 
-def test_direct_only_filters_out_multi_segment_flights(mock_requests_get):
+def test_direct_only_passes_through_direct_flights(mock_requests_get):
     with patch("src.agents.sourcing.requests.get", side_effect=mock_requests_get):
         out = sourcing_node({
             "origin": "LHR", "destination": "JFK",
             "travel_dates": "2026-09-20 to 2026-09-25",
-            "direct_only": False,  # fixture flight has 1 segment, so this should still pass through
+            "direct_only": True,  # fixture flight has 0 stops on both legs, so this should still pass through
         })
     assert len(out["raw_flight_data"]) == 1
 

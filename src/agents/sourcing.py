@@ -1,6 +1,5 @@
 import os
 import requests
-import re
 from datetime import datetime
 from typing import Dict, Any
 from dotenv import load_dotenv
@@ -54,19 +53,20 @@ def sourcing_node(state: Dict[str, Any]) -> Dict[str, Any]:
         return {"raw_flight_data": raw_flight_data, "raw_hotel_data": raw_hotel_data, "next_node": "end"}
 
     # -----------------------------------------
-    # 1. RAPIDAPI SKYSCANNER FLIGHTS
+    # 1. RAPIDAPI SKYSCANNER FLIGHTS (round trip)
     # -----------------------------------------
     try:
-        print(f"DEBUG: Requesting Crawlio API from {origin} to {destination} on {check_in_date} for {travelers} traveler(s)...")
-        
+        print(f"DEBUG: Requesting round-trip flights from {origin} to {destination}, {check_in_date} -> {check_out_date}, for {travelers} traveler(s)...")
+
         RAPIDAPI_KEY = os.getenv("Sky_Scanner_Key")
         RAPIDAPI_HOST = config.flights.host
 
-        flight_url = config.flights.url
+        flight_url = config.flights.roundtrip_url
         querystring = {
             "origin": origin,
             "destination": destination,
             "date": check_in_date,
+            "return_date": check_out_date,
             "limit": str(config.flights.request_limit),
             "adults": str(travelers),
             "currency": config.flights.currency,
@@ -84,91 +84,68 @@ def sourcing_node(state: Dict[str, Any]) -> Dict[str, Any]:
         flight_res.raise_for_status()
         data = flight_res.json()
 
-        itineraries = []
-        if isinstance(data, dict):
-            for key in ["itineraries", "results", "flights", "offers", "legs", "data"]:
-                if isinstance(data.get(key), list):
-                    itineraries = data.get(key)
-                    break
-            if not itineraries:
-                for key, value in data.items():
-                    if isinstance(value, list) and len(value) > 0:
-                        itineraries = value
-                        break
-            if not itineraries:
-                for key, value in data.items():
-                    if isinstance(value, dict):
-                        for sub_key, sub_value in value.items():
-                            if isinstance(sub_value, list) and len(sub_value) > 0:
-                                itineraries = sub_value
-                                break
+        results = data.get("results", []) if isinstance(data, dict) else []
 
-        for itin in itineraries:
+        def _leg_hours(leg: dict) -> float:
+            """Leg duration in hours, from dur_min or falling back to dep/arr timestamps."""
+            dur_min = leg.get("dur_min")
+            if dur_min:
+                return float(dur_min) / 60.0
+            dt_format = "%Y-%m-%dT%H:%M:%S"
+            d1_fl = datetime.strptime(leg["dep"], dt_format)
+            d2_fl = datetime.strptime(leg["arr"], dt_format)
+            return (d2_fl - d1_fl).total_seconds() / 3600.0
+
+        for result in results:
             if len(raw_flight_data) >= config.flights.result_limit:
                 break
-                
-            legs = itin.get("legs", [])
-            if not legs:
+
+            legs = result.get("legs", [])
+            if len(legs) < 2:
+                # Not a full round trip (outbound + inbound) - skip, don't misprice it.
                 continue
-                
-            first_leg = legs[0]
-            segments = first_leg.get("segments", [])
-            
-            if direct_only and len(segments) > 1:
+
+            outbound_leg, inbound_leg = legs[0], legs[1]
+
+            # direct_only and max_flight_hours are enforced per-leg: a traveler
+            # asking for "direct" or a duration cap means each leg individually,
+            # not the combined outbound+inbound trip.
+            if direct_only and (outbound_leg.get("stops", 0) > 0 or inbound_leg.get("stops", 0) > 0):
                 continue
-                
-            dep_time = first_leg.get("dep", "TBD")
-            arr_time = first_leg.get("arr", "TBD")
 
-            if dep_time != "TBD" and arr_time != "TBD":
-                dep_clean = str(dep_time).replace("T", " ")[:16]
-                arr_clean = str(arr_time).replace("T", " ")[:16]
-                
-                try:
-                    duration_mins = first_leg.get("duration")
-                    if duration_mins:
-                        flight_hours = int(duration_mins) / 60.0
-                    else:
-                        dt_format = "%Y-%m-%d %H:%M"
-                        d1_fl = datetime.strptime(dep_clean, dt_format)
-                        d2_fl = datetime.strptime(arr_clean, dt_format)
-                        flight_hours = (d2_fl - d1_fl).total_seconds() / 3600.0
+            try:
+                if _leg_hours(outbound_leg) > max_flight_hours or _leg_hours(inbound_leg) > max_flight_hours:
+                    continue
+            except Exception as e:
+                print(f"DEBUG: Duration calculation failed, excluding itinerary: {e}")
+                continue
 
-                    if flight_hours > max_flight_hours:
-                        continue 
-                except Exception as e:
-                    print(f"DEBUG: Duration calculation failed: {e}")
+            outbound_segments = outbound_leg.get("segments", [])
+            inbound_segments = inbound_leg.get("segments", [])
 
-                dep_time = dep_clean
-                arr_time = arr_clean
+            total_price = float(result.get("price_raw", 0.0))
 
-            total_price = 0.0
-            if "price" in itin:
-                p = itin["price"]
-                raw_price = str(p.get("amount", p) if isinstance(p, dict) else p)
-                clean_price = re.sub(r'[^\d.]', '', raw_price)
-                if clean_price:
-                    total_price = float(clean_price)
-            
             airline = "Unknown Airline"
-            carriers = itin.get("carriers", [])
-            if carriers and len(carriers) > 0:
-                airline = carriers[0].get("name", carriers[0]) if isinstance(carriers[0], dict) else carriers[0]
-            
-            flight_num = "TBD"
-            if segments and len(segments) > 0:
-                flight_num = segments[0].get("flight", "TBD")
+            carriers = result.get("carriers", [])
+            if carriers:
+                airline = carriers[0]
+
+            outbound_flight_num = outbound_segments[0].get("flight", "TBD") if outbound_segments else "TBD"
+            inbound_flight_num = inbound_segments[0].get("flight", "TBD") if inbound_segments else "TBD"
 
             raw_flight_data.append({
                 "name": str(airline),
                 "price": total_price,
-                "flight_number": str(flight_num),
-                "departure_time": dep_time,
-                "arrival_time": arr_time,
+                "flight_number": str(outbound_flight_num),
+                "departure_time": str(outbound_leg.get("dep", "TBD")).replace("T", " ")[:16],
+                "arrival_time": str(outbound_leg.get("arr", "TBD")).replace("T", " ")[:16],
+                "return_flight_number": str(inbound_flight_num),
+                "return_departure_time": str(inbound_leg.get("dep", "TBD")).replace("T", " ")[:16],
+                "return_arrival_time": str(inbound_leg.get("arr", "TBD")).replace("T", " ")[:16],
                 "cabin_class": "Economy"
             })
-            
-        print(f"DEBUG: Successfully parsed {len(raw_flight_data)} live Skyscanner flights!")
+
+        print(f"DEBUG: Successfully parsed {len(raw_flight_data)} live round-trip flights!")
 
         if run_metrics:
             run_metrics.add_api_call(
