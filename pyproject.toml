@@ -19,6 +19,8 @@ dependencies = [
     "requests>=2.34.2",
     "streamlit>=1.38",
     "streamlit-star-rating>=0.0.5",
+    "chromadb>=0.5",
+    "sentence-transformers>=3.0",
 ]
 
 [project.optional-dependencies]

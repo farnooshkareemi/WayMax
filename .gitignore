@@ -8,3 +8,4 @@ dist/
 build/
 CLAUDE.md
 outputs/metrics/*.json
+src/rag/.chroma/
