@@ -3,6 +3,7 @@ import os
 import platform
 import json
 import datetime
+import logging
 import requests
 import streamlit as st
 from streamlit_star_rating import st_star_rating
@@ -25,6 +26,10 @@ if platform.system() == "Windows":
 root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 if root_dir not in sys.path:
     sys.path.insert(0, root_dir)
+
+from src.logging_config import configure_logging
+configure_logging()
+logger = logging.getLogger(__name__)
 
 from src.config import load_config
 ui_config = load_config().ui
@@ -54,8 +59,8 @@ def _search_booking_destinations(query: str) -> list[tuple[str, dict]]:
         )
         res.raise_for_status()
         data = res.json()
-    except Exception as e:
-        print(f"DEBUG: Destination Autocomplete failed for '{query}': {e}")
+    except Exception:
+        logger.warning("Destination Autocomplete failed for '%s'", query, exc_info=True)
         return []  # searchbox just shows no results; doesn't crash the form
 
     results = data.get("data", [])
