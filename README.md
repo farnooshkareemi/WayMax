@@ -1,33 +1,66 @@
-# WAYMAX: Autonomous Travel Optimizer
+# WayMax
 
-## System Overview
-WAYMAX is a multi-agent travel optimization system built using LangGraph. Its primary goal is to take unstructured user travel requests and compute mathematically optimal flight and hotel combinations that strictly adhere to a maximum budget constraint.
+A multi-agent travel planner that turns a natural-language trip request into a
+priced, budget-fitting flight + hotel itinerary — sourced from live flight and
+hotel APIs, cost-adjusted with a retrieval-augmented estimate of hidden fees,
+and solved with an exact optimizer rather than a single LLM guess.
 
-## Architecture: The Supervisor Pattern
-We utilize a Hierarchical Supervisor multi-agent topology to enforce strict mathematical and behavioral boundaries.
+It's built as a small case study in dividing an "AI travel agent" into
+narrow, single-responsibility agents — the kind of decomposition a real
+production system would use instead of asking one large model to parse
+intent, call APIs, and do budget math all in the same prompt.
 
-* **Node 0: The Supervisor (Concierge Agent)**
-  * **Role:** The only agent allowed to interface with the user.
-  * **Task:** Extract constraints (Destination, Travel Dates, Max Budget) from natural language and route the flow to specialist agents.
-* **Node 1: The Sourcing Agent**
-  * **Role:** Data retrieval. 
-  * **Task:** Trigger external APIs (Flights/Hotels) based on extracted constraints. It strictly outputs raw JSON data and cannot converse.
-* **Node 2: The Optimization Agent (RAG + Math)**
-  * **Role:** The Mathematician.
-  * **Task:** Query the vector database for hidden travel rules (baggage fees, tourist taxes) and compute the exact combination of raw API data that stays under the max budget.
+## Architecture
 
-## The Shared State (LangGraph TypedDict)
-Data moves between agents strictly through this state schema:
-* `chat_history`: List of strings.
-* `extracted_constraints`: Dict containing `destination` and `max_budget` (float).
-* `raw_vendor_data`: List of dicts (Flight/Hotel JSONs).
-* `final_itinerary`: Dict containing the optimized result.
+A [LangGraph](https://github.com/langchain-ai/langgraph) `StateGraph` runs
+four nodes in a fixed pipeline, each with one job and one exit condition:
 
-## RAG Knowledge Base Strategy
-The system uses Retrieval-Augmented Generation to account for non-API costs:
-1. Low-Cost Airline Baggage Policies.
-2. Local Tourist Tax Frameworks.
-3. Public Transit Manuals.
+```
+supervisor --(destination found)--> sourcing --> rag --> optimization --> END
+     \--(no destination extracted)--> END
+```
+
+| Node | File | Responsibility |
+|---|---|---|
+| **Supervisor** | [`src/agents/supervisor.py`](src/agents/supervisor.py) | The only node that reads conversation history. Uses Gemini 2.5 Flash with structured output to extract origin/destination **IATA airport codes**, dates, budget, and traveler count from free text. Routes to `sourcing` only if a destination was found. |
+| **Sourcing** | [`src/agents/sourcing.py`](src/agents/sourcing.py) | Pure data retrieval — never converses, never guesses. Calls the Skyscanner flights API and the Booking.com hotels API in parallel, filtered by the user's direct-flight/star-rating/duration preferences. Any API failure degrades to an empty list rather than raising, so a flaky provider can't crash the whole run. |
+| **RAG** | [`src/agents/rag.py`](src/agents/rag.py) | Enriches each sourced flight with a checked-baggage-fee estimate, retrieved from a local [Chroma](https://www.trychroma.com/) vector store of airline baggage policies (embedded with `sentence-transformers`). This is what lets the optimizer account for costs that never appear in a flight-search API response. |
+| **Optimizer** | [`src/agents/optimization.py`](src/agents/optimization.py) | Deterministic brute-force search over every (flight × hotel) pair to find the true-cheapest combination — hotel cost scaled by nights and rooms-needed, baggage cost scaled by traveler count — that fits the budget. Falls back to the single cheapest flight + hotel (flagged `within_budget: False`) if nothing fits, rather than returning nothing. |
+
+Every node is a plain function over a dict (`WaymaxState`), so each is
+independently callable and testable without going through the graph — see
+[`tests/`](tests/) for examples that exercise nodes directly with mocked API
+responses.
+
+### Why hotel destination resolution isn't a text-guessing problem
+
+Booking.com's hotel-search API needs an internal `dest_id`, not a city name —
+and city names are frequently ambiguous ("Valencia" — Spain or Venezuela?
+"Cambridge" — UK or Massachusetts?). Rather than having an LLM or a fuzzy
+cache guess which one the user meant, the Streamlit UI queries Booking.com's
+own Autocomplete endpoint live as the user types and lets them pick the exact
+match — so the `dest_id` used downstream is always correct, never inferred.
+
+## Shared state
+
+All four nodes read and write a single `TypedDict` — see
+[`src/state.py`](src/state.py) for the authoritative schema. The important
+fields:
+
+- `origin`, `destination` — IATA airport codes, extracted by the supervisor
+- `destination_city`, `hotel_dest_id` — resolved once by the UI's live search box, used directly by hotel sourcing
+- `max_budget`, `travel_dates`, `travelers`, `min_hotel_stars`, `direct_only`, `max_flight_hours` — user constraints
+- `raw_flight_data`, `raw_hotel_data` — sourced results (flights gain a `baggage_fee_estimate` after the RAG node runs)
+- `final_itinerary` — the optimizer's chosen flight + hotel pair, with a full cost breakdown
+
+## Observability
+
+Every graph invocation writes a JSON metrics file to `outputs/metrics/`
+(see [`src/metrics.py`](src/metrics.py)) capturing per-node wall-clock
+timing, LLM token usage, the outcome of every external API call (including
+cache hits vs. live lookups), and optimizer quality (combinations evaluated,
+best price found, whether it landed within budget). This is meant to make
+future performance/cost work measurable rather than guessed at.
 
 ## Installation
 
@@ -37,14 +70,23 @@ cd waymax
 pip install -e .[dev]
 ```
 
-This installs WayMax and its runtime dependencies (LangGraph, LangChain, Streamlit, etc.)
-plus the `dev` extra (`pytest`, `responses`) needed to run the test suite.
+This installs WayMax and its runtime dependencies (LangGraph, LangChain,
+Streamlit, ChromaDB, sentence-transformers, etc.) plus the `dev` extra
+(`pytest`, `responses`) needed to run the test suite.
+
+**Windows note:** `torch` (a `sentence-transformers` dependency, used by the
+RAG node) requires the
+[Microsoft Visual C++ Redistributable (x64)](https://aka.ms/vs/17/release/vc_redist.x64.exe)
+to load correctly. Without it, RAG lookups fail with a DLL error and the RAG
+node degrades gracefully to a `0.0` baggage estimate — the pipeline still
+runs, but baggage costs won't be reflected.
 
 ## Configuration
 
-Non-secret tunables (LLM model name, API hosts/timeouts, result caps, UI defaults, etc.)
-live in [`config/config.yaml`](config/config.yaml) and are loaded through `src/config.py`.
-Secrets go in a `.env` file at the repo root (not committed):
+Non-secret tunables (LLM model name, API hosts/timeouts, result caps, UI
+defaults, etc.) live in [`config/config.yaml`](config/config.yaml) and are
+loaded through [`src/config.py`](src/config.py). Secrets go in a `.env` file
+at the repo root (not committed):
 
 ```
 GOOGLE_API_KEY=your-google-api-key
@@ -67,4 +109,9 @@ streamlit run src/ui/app.py
 pytest tests/ -v
 ```
 
-All tests run offline against mocked API/LLM responses — no API keys required.
+All tests run offline against mocked API/LLM responses — no API keys
+required, no live network calls. The RAG test suite builds a real (tiny)
+Chroma collection with the real local embedding model rather than mocking
+retrieval, since a mocked embedding function can't validate that semantic
+search actually works; it skips cleanly (not a failure) if `torch` can't
+load, per the Windows note above.
