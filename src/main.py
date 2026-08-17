@@ -41,6 +41,9 @@ workflow.add_edge("optimization", END)
 app = workflow.compile()
 
 if __name__ == "__main__":
+    from src.logging_config import configure_logging
+    configure_logging()
+
     # Test with a mock state containing a human message
 # Test with a mock state containing all required variables
     test_state = {
