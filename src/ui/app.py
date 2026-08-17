@@ -82,27 +82,10 @@ def _search_booking_destinations(query: str) -> list[tuple[str, dict]]:
     return options
 
 # 3. Streamlit Page Config
+# Light/dark palette lives in .streamlit/config.toml ([theme.light]/[theme.dark]),
+# which gives users a native theme toggle in Streamlit's own settings menu -
+# replaces the old hand-rolled stock-photo background + CSS overlay.
 st.set_page_config(page_title=ui_config.page_title, page_icon=ui_config.page_icon, layout=ui_config.layout)
-
-# --- BACKGROUND IMAGE CSS ---
-st.markdown("""
-    <style>
-    .stApp {
-        background-image: linear-gradient(rgba(15, 17, 22, 0.75), rgba(15, 17, 22, 0.75)), 
-                          url("https://images.unsplash.com/photo-1436491865332-7a61a109cc05?q=80&w=2000&auto=format&fit=crop");
-        background-size: cover;
-        background-position: center;
-        background-attachment: fixed;
-    }
-    
-    .main-container {
-        background-color: rgba(0, 0, 0, 0.4);
-        padding: 30px;
-        border-radius: 15px;
-        margin-bottom: 20px;
-    }
-    </style>
-""", unsafe_allow_html=True)
 
 # 4. Cache the LangGraph application
 @st.cache_resource

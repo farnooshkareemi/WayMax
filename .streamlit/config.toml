@@ -8,3 +8,19 @@
 # but it's spammy. Disabling means edits to src/ui/app.py won't auto-reload;
 # press 'r' in the browser tab or restart `streamlit run` to pick up changes.
 fileWatcherType = "none"
+
+# Defining both [theme.light] and [theme.dark] makes Streamlit show its own
+# light/dark toggle in the app's settings menu (top-right "⋮" icon) - no
+# custom CSS or session_state toggle code needed. Replaces the old hand-rolled
+# stock-photo background with a clean, deliberate palette in both modes.
+[theme.light]
+primaryColor = "#1A56DB"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F8F9FA"
+textColor = "#111827"
+
+[theme.dark]
+primaryColor = "#3B82F6"
+backgroundColor = "#0F1115"
+secondaryBackgroundColor = "#161A20"
+textColor = "#E5E7EB"
