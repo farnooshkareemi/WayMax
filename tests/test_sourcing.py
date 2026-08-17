@@ -84,6 +84,26 @@ def test_min_stars_filters_out_lower_rated_hotels(mock_requests_get):
     assert out["raw_hotel_data"] == []
 
 
+def test_hotel_dest_id_short_circuits_autocomplete(mock_requests_get):
+    """When the UI has already resolved hotel_dest_id, sourcing_node must use it
+    directly and never call the Autocomplete endpoint or touch cities.json."""
+    calls = []
+
+    def _tracking_get(url, headers=None, params=None, timeout=None):
+        calls.append(url)
+        return mock_requests_get(url, headers=headers, params=params, timeout=timeout)
+
+    with patch("src.agents.sourcing.requests.get", side_effect=_tracking_get):
+        out = sourcing_node({
+            "origin": "LHR", "destination": "JFK",
+            "travel_dates": "2026-09-20 to 2026-09-25",
+            "hotel_dest_id": "999",
+        })
+
+    assert not any("auto-complete" in url for url in calls)
+    assert len(out["raw_hotel_data"]) == 1
+
+
 def test_records_metrics_when_run_is_active(mock_requests_get):
     metrics = new_run()
     with patch("src.agents.sourcing.requests.get", side_effect=mock_requests_get):
