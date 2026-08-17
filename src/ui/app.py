@@ -85,7 +85,9 @@ def _search_booking_destinations(query: str) -> list[tuple[str, dict]]:
 # Light/dark palette lives in .streamlit/config.toml ([theme.light]/[theme.dark]),
 # which gives users a native theme toggle in Streamlit's own settings menu -
 # replaces the old hand-rolled stock-photo background + CSS overlay.
-st.set_page_config(page_title=ui_config.page_title, page_icon=ui_config.page_icon, layout=ui_config.layout)
+# No custom page_icon/emoji - kept text-only per a deliberate no-icons choice
+# (the hotel star rating is the one intentional exception).
+st.set_page_config(page_title=ui_config.page_title, layout=ui_config.layout)
 
 # 4. Cache the LangGraph application
 @st.cache_resource
@@ -100,7 +102,7 @@ with st.spinner("Initializing WayMax Engine..."):
 CURRENCIES = ui_config.currencies
 
 # --- MAIN PAGE ---
-st.title(f"{ui_config.page_icon} {ui_config.page_title}")
+st.title(ui_config.page_title)
 st.caption("AI-powered travel planning and itinerary optimization")
 st.write("") 
 
@@ -168,10 +170,10 @@ st.write("")
 st.write("**Flight Preferences**")
 col_f1, col_f2 = st.columns(2)
 with col_f1:
-    direct_flights_input = st.checkbox("✈️ Direct Flights Only (No Layovers)", value=False)
+    direct_flights_input = st.checkbox("Direct Flights Only (No Layovers)", value=False)
 with col_f2:
     max_flight_hours = st.slider(
-        "⏳ Max Flight Duration (Hours)",
+        "Max Flight Duration (Hours)",
         min_value=ui_config.max_flight_hours.min,
         max_value=ui_config.max_flight_hours.max,
         value=ui_config.max_flight_hours.default,
@@ -187,7 +189,7 @@ if "messages" not in st.session_state:
 if submit_button:
     # --- VALIDATION CHECK ---
     if not origin_input or not dest_selection or not currency_input or not start_date or not end_date:
-        st.error("⚠️ Please fill out all required fields, including selecting a Destination from the search results, before planning your trip.")
+        st.error("Please fill out all required fields, including selecting a Destination from the search results, before planning your trip.")
     else:
         dates_str = f"{start_date.strftime('%b %d')} - {end_date.strftime('%b %d')}"
         currency_code = currency_input.split(" ")[1]
@@ -231,17 +233,17 @@ if submit_button:
 
         # Friendly labels for each real graph node (src/main.py), in pipeline order.
         NODE_LABELS = {
-            "supervisor": "🧭 Supervisor parsing constraints and dates...",
-            "sourcing": "📡 Sourcing live flight & hotel data...",
-            "rag": "📚 Estimating hidden costs (baggage fees)...",
-            "optimization": "🧮 Optimizer crunching combinations against budget...",
+            "supervisor": "Supervisor parsing constraints and dates...",
+            "sourcing": "Sourcing live flight & hotel data...",
+            "rag": "Estimating hidden costs (baggage fees)...",
+            "optimization": "Optimizer crunching combinations against budget...",
         }
 
         output = dict(initial_state)
-        with st.status("🤖 WayMax Agents Executing...", expanded=True) as status:
+        with st.status("WayMax Agents Executing...", expanded=True) as status:
             step_placeholders = {node: st.empty() for node in NODE_LABELS}
             for node in NODE_LABELS:
-                step_placeholders[node].write(f"⏳ {NODE_LABELS[node]}")
+                step_placeholders[node].write(f"Pending: {NODE_LABELS[node]}")
 
             # stream_mode="updates" yields one {node_name: state_delta} chunk per
             # completed node, so the status list can check items off as the
@@ -250,9 +252,9 @@ if submit_button:
                 for node, state_delta in chunk.items():
                     output.update(state_delta)
                     if node in step_placeholders:
-                        step_placeholders[node].write(f"✅ {NODE_LABELS[node]}")
+                        step_placeholders[node].write(f"Done: {NODE_LABELS[node]}")
 
-            status.update(label="✅ Optimization Complete!", state="complete", expanded=False)
+            status.update(label="Optimization Complete", state="complete", expanded=False)
 
         final_itinerary = output.get("final_itinerary")
 
@@ -293,9 +295,9 @@ if submit_button:
                 with summary_col2:
                     st.metric("Total Trip Cost", f"{currency_symbol}{total_price:,.2f}")
                 if within_budget:
-                    st.success(f"✅ Within your {currency_symbol}{budget_input:,.2f} budget", icon="✅")
+                    st.success(f"Within your {currency_symbol}{budget_input:,.2f} budget", icon=None)
                 else:
-                    st.warning(f"⚠️ Exceeds your {currency_symbol}{budget_input:,.2f} budget", icon="⚠️")
+                    st.warning(f"Exceeds your {currency_symbol}{budget_input:,.2f} budget", icon=None)
 
             st.write("")
 
@@ -304,9 +306,9 @@ if submit_button:
             
             with tab_overview:
                 if within_budget:
-                    st.success("✅ **Optimized Plan & Within Budget**")
+                    st.success("**Optimized Plan & Within Budget**")
                 else:
-                    st.warning("⚠️ **Exceeds Budget Constraint**")
+                    st.warning("**Exceeds Budget Constraint**")
                 
                 col_ov1, col_ov2, col_ov3 = st.columns(3)
                 col_ov1.metric("TOTAL COST", f"{currency_symbol}{total_price:,.2f}")
@@ -314,45 +316,45 @@ if submit_button:
                 col_ov3.metric("HOTEL COST", f"{currency_symbol}{hotel_total_cost:,.2f}")
 
             with tab_flight:
-                st.subheader("🛫 Outbound Flight")
+                st.subheader("Outbound Flight")
                 st.write(f"**Carrier:** {airline} | **Flight No:** {flight_num}")
                 st.write(f"**Class:** {cabin_class}")
-                
+
                 f_col1, f_col2 = st.columns(2)
                 with f_col1:
                     st.write("**Departure:**")
-                    st.write(f"📍 {origin_input}")
-                    st.write(f"🕒 {dep_time}")
+                    st.write(origin_input)
+                    st.write(dep_time)
                 with f_col2:
                     st.write("**Arrival:**")
-                    st.write(f"📍 {dest_input}")
-                    st.write(f"🕒 {arr_time}")
+                    st.write(dest_input)
+                    st.write(arr_time)
 
                 st.divider()
-                st.subheader("🛬 Return Flight")
+                st.subheader("Return Flight")
                 st.write(f"**Flight No:** {return_flight_num}")
 
                 r_col1, r_col2 = st.columns(2)
                 with r_col1:
                     st.write("**Departure:**")
-                    st.write(f"📍 {dest_input}")
-                    st.write(f"🕒 {return_dep_time}")
+                    st.write(dest_input)
+                    st.write(return_dep_time)
                 with r_col2:
                     st.write("**Arrival:**")
-                    st.write(f"📍 {origin_input}")
-                    st.write(f"🕒 {return_arr_time}")
+                    st.write(origin_input)
+                    st.write(return_arr_time)
 
                 st.divider()
                 st.write(f"**Total Flight Cost ({travelers_input} Travelers, Round-Trip):** {currency_symbol}{flight_cost:,.2f}")
 
             with tab_hotel:
-                st.subheader("🏨 Accommodation")
-                
+                st.subheader("Accommodation")
+
                 star_display = f"{'⭐' * int(hotel_rating)}" if isinstance(hotel_rating, (int, float)) and hotel_rating > 0 else "(Unrated)"
-                
+
                 st.write(f"**Hotel:** {hotel_name} {star_display}")
-                st.write(f"**Address:** 🗺️ {hotel_address}")
-                st.write(f"**Room Type:** 🛏️ {room_type}")
+                st.write(f"**Address:** {hotel_address}")
+                st.write(f"**Room Type:** {room_type}")
                 
                 h_col1, h_col2 = st.columns(2)
                 with h_col1:
