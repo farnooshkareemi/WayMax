@@ -12,14 +12,17 @@ fee estimate of 0.0 rather than blocking the pipeline -- this node degrades
 gracefully like sourcing_node does for its own API calls.
 """
 
+import logging
 from typing import Dict, Any
 
 from src.metrics import get_current_run, node_timer
 from src.rag.retriever import estimate_checked_bag_fee
 
+logger = logging.getLogger(__name__)
+
 
 def rag_node(state: Dict[str, Any]) -> Dict[str, Any]:
-    print("--- STARTING RAG NODE ---")
+    logger.info("Starting RAG node")
 
     run_metrics = get_current_run()
     timer = node_timer(run_metrics, "rag") if run_metrics else None
@@ -28,13 +31,22 @@ def rag_node(state: Dict[str, Any]) -> Dict[str, Any]:
 
     raw_flight_data = state.get("raw_flight_data", [])
     enriched_flights = []
+    # RAG lookups fail together (e.g. torch/Chroma unavailable) or not at all -
+    # log the first failure per run with a traceback, then only debug-log the
+    # rest, so one root cause doesn't produce N duplicate warnings/tracebacks
+    # for an N-flight result set.
+    logged_failure = False
 
     for flight in raw_flight_data:
         airline = flight.get("name")
         try:
             fee = estimate_checked_bag_fee(airline)
-        except Exception as e:
-            print(f"DEBUG: RAG lookup failed for '{airline}': {e}")
+        except Exception:
+            if not logged_failure:
+                logger.warning("RAG lookup failed for '%s' (further failures this run logged at debug level)", airline, exc_info=True)
+                logged_failure = True
+            else:
+                logger.debug("RAG lookup failed for '%s'", airline, exc_info=True)
             fee = None
 
         enriched = dict(flight)
@@ -42,9 +54,9 @@ def rag_node(state: Dict[str, Any]) -> Dict[str, Any]:
         enriched_flights.append(enriched)
 
         if fee is not None:
-            print(f"DEBUG: Baggage fee estimate for {airline}: {fee}")
+            logger.debug("Baggage fee estimate for %s: %s", airline, fee)
         else:
-            print(f"DEBUG: No baggage policy found for '{airline}', assuming 0.0")
+            logger.debug("No baggage policy found for '%s', assuming 0.0", airline)
 
     if timer:
         timer.__exit__(None, None, None)
