@@ -1,10 +1,10 @@
 """Typed loader for config/config.yaml.
 
 Centralizes every non-secret tunable used across the WayMax pipeline (LLM model
-name, RapidAPI hosts/timeouts/result caps, optimizer assumptions, UI defaults,
-and the build_dictionary city list) so they live in one reproducible, versioned
-file instead of being hardcoded inline. Secrets (GOOGLE_API_KEY, Sky_Scanner_Key)
-are NOT read here — they stay in .env via os.getenv, as before.
+name, RapidAPI hosts/timeouts/result caps, optimizer assumptions, and UI
+defaults) so they live in one reproducible, versioned file instead of being
+hardcoded inline. Secrets (GOOGLE_API_KEY, Sky_Scanner_Key) are NOT read here
+— they stay in .env via os.getenv, as before.
 """
 
 import os
@@ -48,7 +48,6 @@ class HotelsConfig(BaseModel):
     temperature_unit: str
     room_qty: int
     currency: str
-    cities_cache_path: str
 
 
 class SourcingConfig(BaseModel):
@@ -86,22 +85,12 @@ class UIConfig(BaseModel):
     max_flight_hours: RangeConfig
 
 
-class BuildDictionaryConfig(BaseModel):
-    autocomplete_url: str
-    host: str
-    request_timeout_seconds: int
-    sleep_between_calls_seconds: float
-    output_path: str
-    top_cities: List[str]
-
-
 class WaymaxConfig(BaseModel):
     llm: LLMConfig
     sourcing: SourcingConfig
     optimizer: OptimizerConfig
     rag: RAGConfig
     ui: UIConfig
-    build_dictionary: BuildDictionaryConfig
 
 
 @lru_cache(maxsize=1)

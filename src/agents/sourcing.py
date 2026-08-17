@@ -179,66 +179,44 @@ def sourcing_node(state: Dict[str, Any]) -> Dict[str, Any]:
             if run_metrics:
                 run_metrics.add_api_call("hotels_dest_lookup", ok=True, cache_hit=True)
         else:
-            # --- HYBRID MAPPING STRATEGY (fallback for non-UI invocations) ---
-            import json
-            LOCAL_DEST_MAP = {}
-            try:
-                with open(config.hotels.cities_cache_path, "r") as f:
-                    LOCAL_DEST_MAP = json.load(f)
-            except Exception as e:
-                print(f"DEBUG: Failed to load cities.json cache: {e}")
-
-            # Booking.com's dest_id is keyed by city name, not IATA airport code -
-            # always resolve using destination_city, falling back to destination
-            # only if the LLM extraction didn't populate it.
+            # Fallback for invocations that don't go through the UI (e.g. a
+            # chat-only prompt with no destination_searchbox selection): resolve
+            # live against Autocomplete. Booking.com's dest_id is keyed by city
+            # name, not IATA airport code, so always resolve using
+            # destination_city, falling back to destination only if the LLM
+            # extraction didn't populate it.
             dest_query_name = state.get("destination_city") or destination
-            dest_key = str(dest_query_name).strip().upper()
-            dest_id = LOCAL_DEST_MAP.get(dest_key)
+            print(f"DEBUG: No hotel_dest_id in state. Calling Autocomplete API for '{dest_query_name}'...")
+            auto_url = config.hotels.autocomplete_url
+            auto_query = {"query": dest_query_name}
 
-            if dest_id:
-                print(f"DEBUG: Local cache hit! '{dest_query_name}' resolved to {dest_id}")
+            try:
+                auto_res = requests.get(auto_url, headers=hotel_headers, params=auto_query, timeout=config.hotels.autocomplete_timeout_seconds)
+                auto_res.raise_for_status()
+                auto_data = auto_res.json()
+
+                results = auto_data.get("data", auto_data.get("result", []))
+                if isinstance(results, list) and len(results) > 0:
+                    for item in results:
+                        if item.get("search_type") == "city" or "dest_id" in item:
+                            dest_id = item.get("dest_id") or item.get("id")
+                            dest_type = item.get("search_type", "city")
+                            break
+                    if not dest_id:
+                        dest_id = results[0].get("dest_id", results[0].get("id"))
+
+                if dest_id:
+                    print(f"DEBUG: Autocomplete resolved '{dest_query_name}' to {dest_id}")
                 if run_metrics:
-                    run_metrics.add_api_call("hotels_dest_lookup", ok=True, cache_hit=True)
-            else:
-                print(f"DEBUG: Cache miss for '{dest_query_name}'. Calling Autocomplete API...")
-                auto_url = config.hotels.autocomplete_url
-                auto_query = {"query": dest_query_name}
-
-                try:
-                    auto_res = requests.get(auto_url, headers=hotel_headers, params=auto_query, timeout=config.hotels.autocomplete_timeout_seconds)
-                    auto_res.raise_for_status()
-                    auto_data = auto_res.json()
-
-                    results = auto_data.get("data", auto_data.get("result", []))
-                    if isinstance(results, list) and len(results) > 0:
-                        for item in results:
-                            if item.get("search_type") == "city" or "dest_id" in item:
-                                dest_id = item.get("dest_id") or item.get("id")
-                                dest_type = item.get("search_type", "city")
-                                break
-                        if not dest_id:
-                            dest_id = results[0].get("dest_id", results[0].get("id"))
-
-                    if dest_id:
-                        print(f"DEBUG: Autocomplete resolved '{dest_query_name}' to {dest_id}")
-                        # Grow the local cache so this destination is a hit next time,
-                        # instead of relying on a fixed, pre-mined city list.
-                        try:
-                            LOCAL_DEST_MAP[dest_key] = str(dest_id)
-                            with open(config.hotels.cities_cache_path, "w") as f:
-                                json.dump(LOCAL_DEST_MAP, f, indent=4)
-                        except Exception as e:
-                            print(f"DEBUG: Failed to persist cities.json cache: {e}")
-                    if run_metrics:
-                        run_metrics.add_api_call(
-                            "hotels_dest_lookup", ok=True,
-                            status_code=auto_res.status_code, cache_hit=False,
-                        )
-                except Exception as e:
-                    print(f"DEBUG: Autocomplete API failed: {e}")
-                    if run_metrics:
-                        status_code = getattr(getattr(e, "response", None), "status_code", None)
-                        run_metrics.add_api_call("hotels_dest_lookup", ok=False, status_code=status_code, cache_hit=False)
+                    run_metrics.add_api_call(
+                        "hotels_dest_lookup", ok=True,
+                        status_code=auto_res.status_code, cache_hit=False,
+                    )
+            except Exception as e:
+                print(f"DEBUG: Autocomplete API failed: {e}")
+                if run_metrics:
+                    status_code = getattr(getattr(e, "response", None), "status_code", None)
+                    run_metrics.add_api_call("hotels_dest_lookup", ok=False, status_code=status_code, cache_hit=False)
 
         # --- EXECUTE HOTEL SEARCH ---
         if not dest_id:

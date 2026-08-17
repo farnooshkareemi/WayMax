@@ -36,7 +36,9 @@ class APICallOutcome(BaseModel):
     status_code: Optional[int] = None
     ok: bool
     results_returned: Optional[int] = None
-    cache_hit: Optional[bool] = None  # only meaningful for the cities.json lookup
+    cache_hit: Optional[bool] = None  # only meaningful for the hotel dest_id lookup: True when
+                                       # hotel_dest_id was already resolved (e.g. by the UI's
+                                       # search box), False when a live Autocomplete call was made
 
 
 class OptimizerQuality(BaseModel):

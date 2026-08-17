@@ -59,9 +59,6 @@ python -m src.main
 
 # Run the Streamlit UI
 streamlit run src/ui/app.py
-
-# Rebuild the local city-name -> Booking.com dest_id cache
-python build_dictionary.py
 ```
 
 ## Testing

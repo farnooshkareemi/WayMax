@@ -25,7 +25,6 @@ def test_sourcing_hotels_section():
     hotels = load_config().sourcing.hotels
     assert hotels.host == "booking-data.p.rapidapi.com"
     assert hotels.result_limit == 5
-    assert hotels.cities_cache_path == "cities.json"
 
 
 def test_optimizer_section():
@@ -40,9 +39,3 @@ def test_ui_section_has_expected_ranges():
     assert ui.budget.max == 20000
     assert ui.travelers.default == 1
     assert len(ui.currencies) > 0
-
-
-def test_build_dictionary_section_has_cities():
-    build_dict = load_config().build_dictionary
-    assert len(build_dict.top_cities) > 50
-    assert "Paris" in build_dict.top_cities

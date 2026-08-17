@@ -6,29 +6,8 @@ traffic or API keys required.
 
 from unittest.mock import patch
 
-import pytest
-
 from src.agents.sourcing import sourcing_node
-from src.config import load_config
 from src.metrics import new_run
-
-
-@pytest.fixture(autouse=True)
-def isolate_cities_cache(tmp_path):
-    """Point the hotel dest_id cache at a throwaway path for these tests.
-
-    sourcing_node persists newly-resolved dest_ids back to cities.json; without
-    this, running the suite would write a real cities.json into the repo root
-    on every test run. load_config() is lru_cached (one shared singleton for
-    the whole process), so this saves/restores the attribute by hand rather
-    than relying on monkeypatch, and is scoped to this module only so it
-    doesn't affect test_config.py's assertions about the real config value.
-    """
-    hotels_config = load_config().sourcing.hotels
-    original_path = hotels_config.cities_cache_path
-    hotels_config.cities_cache_path = str(tmp_path / "cities.json")
-    yield
-    hotels_config.cities_cache_path = original_path
 
 
 def test_missing_constraints_returns_empty_and_ends():
@@ -86,7 +65,7 @@ def test_min_stars_filters_out_lower_rated_hotels(mock_requests_get):
 
 def test_hotel_dest_id_short_circuits_autocomplete(mock_requests_get):
     """When the UI has already resolved hotel_dest_id, sourcing_node must use it
-    directly and never call the Autocomplete endpoint or touch cities.json."""
+    directly and never call the Autocomplete endpoint."""
     calls = []
 
     def _tracking_get(url, headers=None, params=None, timeout=None):
