@@ -60,9 +60,15 @@ def mock_flight_response():
 
 @pytest.fixture
 def mock_hotel_autocomplete_response():
+    """Shaped after the real /booking/autocomplete response: a flat 'data' list
+    of items keyed by dest_id/dest_type/label (not 'search_type'/'id')."""
     resp = MagicMock(status_code=200)
     resp.raise_for_status = lambda: None
-    resp.json = lambda: {"data": [{"search_type": "city", "dest_id": "123"}]}
+    resp.json = lambda: {
+        "data": [{"dest_type": "city", "dest_id": "123", "label": "Test City, Test Country", "label1": "Test City"}],
+        "totalResultCount": 1,
+        "status": True,
+    }
     return resp
 
 
@@ -91,7 +97,7 @@ def mock_requests_get(mock_flight_response, mock_hotel_autocomplete_response, mo
     def _fake_get(url, headers=None, params=None, timeout=None):
         if "skyscanner" in url:
             return mock_flight_response
-        if "auto-complete" in url:
+        if "autocomplete" in url:
             return mock_hotel_autocomplete_response
         return mock_hotel_search_response
 

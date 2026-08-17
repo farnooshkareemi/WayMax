@@ -79,7 +79,7 @@ def test_hotel_dest_id_short_circuits_autocomplete(mock_requests_get):
             "hotel_dest_id": "999",
         })
 
-    assert not any("auto-complete" in url for url in calls)
+    assert not any("autocomplete" in url for url in calls)
     assert len(out["raw_hotel_data"]) == 1
 
 

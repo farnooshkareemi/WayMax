@@ -49,27 +49,30 @@ def _search_booking_destinations(query: str) -> list[tuple[str, dict]]:
         res = requests.get(
             hotels_config.autocomplete_url,
             headers=headers,
-            params={"query": query},
+            params={"location": query, "language_code": hotels_config.language_code},
             timeout=hotels_config.autocomplete_timeout_seconds,
         )
         res.raise_for_status()
         data = res.json()
-    except Exception:
+    except Exception as e:
+        print(f"DEBUG: Destination Autocomplete failed for '{query}': {e}")
         return []  # searchbox just shows no results; doesn't crash the form
 
-    results = data.get("data", data.get("result", []))
+    results = data.get("data", [])
     if not isinstance(results, list):
         return []
 
+    # Prefer city-level matches (dest_type also includes district, airport,
+    # landmark, region, country) - hotel search wants a city dest_id.
+    city_results = [item for item in results if item.get("dest_type") == "city"]
     options = []
-    for item in results:
-        dest_id = item.get("dest_id") or item.get("id")
+    for item in city_results or results:
+        dest_id = item.get("dest_id")
         if not dest_id:
             continue
-        name = item.get("name") or item.get("city_name") or query
-        country = item.get("country") or item.get("region")
-        label = f"{name}, {country}" if country else name
-        options.append((label, {"dest_id": str(dest_id), "city_name": name}))
+        label = item.get("label") or item.get("label1") or query
+        city_name = item.get("label1") or label
+        options.append((label, {"dest_id": str(dest_id), "city_name": city_name}))
 
     return options
 

@@ -21,7 +21,7 @@ sourcing:
 
   hotels:
     host: "booking-data.p.rapidapi.com"
-    autocomplete_url: "https://booking-data.p.rapidapi.com/booking-app/search/auto-complete"
+    autocomplete_url: "https://booking-data.p.rapidapi.com/booking/autocomplete"
     search_url: "https://booking-data.p.rapidapi.com/booking-app/search/by-dest"
     autocomplete_timeout_seconds: 15
     search_timeout_seconds: 30
@@ -30,6 +30,7 @@ sourcing:
     temperature_unit: "c"
     room_qty: 1
     currency: "EUR"
+    language_code: "en-us"
 
 optimizer:
   rooms_per_traveler_divisor: 2   # ceil(travelers / this) = rooms needed

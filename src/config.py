@@ -48,6 +48,7 @@ class HotelsConfig(BaseModel):
     temperature_unit: str
     room_qty: int
     currency: str
+    language_code: str
 
 
 class SourcingConfig(BaseModel):

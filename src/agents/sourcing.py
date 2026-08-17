@@ -188,22 +188,26 @@ def sourcing_node(state: Dict[str, Any]) -> Dict[str, Any]:
             dest_query_name = state.get("destination_city") or destination
             print(f"DEBUG: No hotel_dest_id in state. Calling Autocomplete API for '{dest_query_name}'...")
             auto_url = config.hotels.autocomplete_url
-            auto_query = {"query": dest_query_name}
+            auto_query = {"location": dest_query_name, "language_code": config.hotels.language_code}
 
             try:
                 auto_res = requests.get(auto_url, headers=hotel_headers, params=auto_query, timeout=config.hotels.autocomplete_timeout_seconds)
                 auto_res.raise_for_status()
                 auto_data = auto_res.json()
 
-                results = auto_data.get("data", auto_data.get("result", []))
+                results = auto_data.get("data", [])
                 if isinstance(results, list) and len(results) > 0:
+                    # Prefer city-level matches (dest_type also includes district,
+                    # airport, landmark, region, country) - hotel search wants a
+                    # city dest_id.
                     for item in results:
-                        if item.get("search_type") == "city" or "dest_id" in item:
-                            dest_id = item.get("dest_id") or item.get("id")
-                            dest_type = item.get("search_type", "city")
+                        if item.get("dest_type") == "city":
+                            dest_id = item.get("dest_id")
+                            dest_type = "city"
                             break
                     if not dest_id:
-                        dest_id = results[0].get("dest_id", results[0].get("id"))
+                        dest_id = results[0].get("dest_id")
+                        dest_type = results[0].get("dest_type", "city")
 
                 if dest_id:
                     print(f"DEBUG: Autocomplete resolved '{dest_query_name}' to {dest_id}")
