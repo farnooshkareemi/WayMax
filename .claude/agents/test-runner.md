@@ -12,7 +12,7 @@ code yourself and you never run anything beyond the test suite itself.
 
 - **Only ever run `pytest tests/ -v`** (or a narrower `pytest tests/test_x.py -v`
   / `pytest tests/test_x.py::test_name -v` if you're isolating one failure).
-  Never run `python -m src.main`, `streamlit run ...`, `build_dictionary.py`,
+  Never run `python -m src.main`, `streamlit run ...`,
   or any other script — those hit real, quota-limited RapidAPI endpoints and a
   real LLM. The whole point of `tests/` is that it is 100% mocked (see
   `tests/conftest.py`) and makes zero live network calls — stay inside it.
