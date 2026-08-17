@@ -282,6 +282,23 @@ if submit_button:
             hotel_total_cost = final_itinerary.get("hotel_total_cost", 0.0)
             within_budget = final_itinerary.get("within_budget", False)
 
+            # --- AT-A-GLANCE SUMMARY CARD ---
+            # Shown before the tabs so the "here's your trip" result lands in
+            # the first second, without needing to click into a tab first.
+            with st.container(border=True):
+                summary_col1, summary_col2 = st.columns([3, 2])
+                with summary_col1:
+                    st.markdown(f"### {origin_input} → {dest_input}")
+                    st.caption(f"{dates_str}  ·  {travelers_input} traveler(s)  ·  {duration} night(s)")
+                with summary_col2:
+                    st.metric("Total Trip Cost", f"{currency_symbol}{total_price:,.2f}")
+                if within_budget:
+                    st.success(f"✅ Within your {currency_symbol}{budget_input:,.2f} budget", icon="✅")
+                else:
+                    st.warning(f"⚠️ Exceeds your {currency_symbol}{budget_input:,.2f} budget", icon="⚠️")
+
+            st.write("")
+
             # --- INTERACTIVE TABS ---
             tab_overview, tab_flight, tab_hotel = st.tabs(["Itinerary Overview", "Flight Details", "Hotel Details"])
             
