@@ -1,0 +1,10 @@
+[server]
+# Disabled: Streamlit's file watcher imports every installed package (including
+# torch-dependent ones like transformers) to build its hot-reload path list.
+# On this machine, torch's c10.dll fails to load outside the ctypes preload
+# hotfix in src/ui/app.py, so the watcher's own imports crash with
+# "OSError: [WinError 1114]" noise in the terminal on every file change poll.
+# This doesn't break the app - Streamlit just logs the failure and moves on -
+# but it's spammy. Disabling means edits to src/ui/app.py won't auto-reload;
+# press 'r' in the browser tab or restart `streamlit run` to pick up changes.
+fileWatcherType = "none"
