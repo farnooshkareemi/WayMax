@@ -1,3 +1,4 @@
+import logging
 from typing import Dict, Any, Optional
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
@@ -8,6 +9,8 @@ from src.metrics import get_current_run, node_timer
 import datetime
 
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 current_year = datetime.datetime.now().year
 current_date = datetime.datetime.now().strftime("%Y-%m-%d")
@@ -41,7 +44,7 @@ llm = ChatGoogleGenerativeAI(model=llm_config.model)
 structured_llm = llm.with_structured_output(TravelConstraints, include_raw=True)
 
 def supervisor_node(state: WaymaxState) -> Dict[str, Any]:
-    print("--- STARTING SUPERVISOR NODE ---")
+    logger.info("Starting supervisor node")
 
     run_metrics = get_current_run()
     timer = node_timer(run_metrics, "supervisor") if run_metrics else None
@@ -75,9 +78,12 @@ def supervisor_node(state: WaymaxState) -> Dict[str, Any]:
         max_budget = response.max_budget
         travel_dates = response.travel_dates
         travelers = response.travelers
-        print(f"DEBUG: LLM Extracted -> Orig: {origin}, Dest: {destination}, City: {destination_city}, Dates: {travel_dates}, Travelers: {travelers}")
-    except Exception as e:
-        print(f"DEBUG: Error during LLM extraction: {e}")
+        logger.debug(
+            "LLM extracted -> Orig: %s, Dest: %s, City: %s, Dates: %s, Travelers: %s",
+            origin, destination, destination_city, travel_dates, travelers,
+        )
+    except Exception:
+        logger.warning("Error during LLM extraction", exc_info=True)
         origin, destination, destination_city, max_budget, travel_dates, travelers = None, None, None, None, None, None
 
     if destination is not None:
