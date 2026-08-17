@@ -256,6 +256,9 @@ if submit_button:
             dep_time = flight.get("departure_time", "TBD")
             arr_time = flight.get("arrival_time", "TBD")
             cabin_class = flight.get("cabin_class", "Economy")
+            return_flight_num = flight.get("return_flight_number", "TBD")
+            return_dep_time = flight.get("return_departure_time", "TBD")
+            return_arr_time = flight.get("return_arrival_time", "TBD")
             
             hotel_name = hotel.get("name", "Unknown Hotel")
             hotel_rate = hotel.get("price_per_night", "N/A")
@@ -297,9 +300,23 @@ if submit_button:
                     st.write("**Arrival:**")
                     st.write(f"📍 {dest_input}")
                     st.write(f"🕒 {arr_time}")
-                    
+
                 st.divider()
-                st.write(f"**Total Flight Cost ({travelers_input} Travelers):** {currency_symbol}{flight_cost:,.2f}")
+                st.subheader("🛬 Return Flight")
+                st.write(f"**Flight No:** {return_flight_num}")
+
+                r_col1, r_col2 = st.columns(2)
+                with r_col1:
+                    st.write("**Departure:**")
+                    st.write(f"📍 {dest_input}")
+                    st.write(f"🕒 {return_dep_time}")
+                with r_col2:
+                    st.write("**Arrival:**")
+                    st.write(f"📍 {origin_input}")
+                    st.write(f"🕒 {return_arr_time}")
+
+                st.divider()
+                st.write(f"**Total Flight Cost ({travelers_input} Travelers, Round-Trip):** {currency_symbol}{flight_cost:,.2f}")
 
             with tab_hotel:
                 st.subheader("🏨 Accommodation")
