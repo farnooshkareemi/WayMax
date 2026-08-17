@@ -3,8 +3,10 @@ import os
 import platform
 import json
 import datetime
+import requests
 import streamlit as st
 from streamlit_star_rating import st_star_rating
+from streamlit_searchbox import st_searchbox
 from langchain_core.messages import HumanMessage, AIMessage
 
 # 1. WINDOWS PYTORCH DLL HOTFIX
@@ -26,6 +28,50 @@ if root_dir not in sys.path:
 
 from src.config import load_config
 ui_config = load_config().ui
+hotels_config = load_config().sourcing.hotels
+
+
+def _search_booking_destinations(query: str) -> list[tuple[str, dict]]:
+    """Live Booking.com Autocomplete lookup, called by st_searchbox as the user types.
+
+    Returns (label_shown_in_dropdown, value_passed_back_on_select) pairs. The
+    selected value carries the resolved dest_id forward into state, so hotel
+    sourcing never has to guess a destination from a city name again.
+    """
+    if not query or len(query) < 2:
+        return []
+
+    headers = {
+        "x-rapidapi-key": os.getenv("Sky_Scanner_Key"),
+        "x-rapidapi-host": hotels_config.host,
+    }
+    try:
+        res = requests.get(
+            hotels_config.autocomplete_url,
+            headers=headers,
+            params={"query": query},
+            timeout=hotels_config.autocomplete_timeout_seconds,
+        )
+        res.raise_for_status()
+        data = res.json()
+    except Exception:
+        return []  # searchbox just shows no results; doesn't crash the form
+
+    results = data.get("data", data.get("result", []))
+    if not isinstance(results, list):
+        return []
+
+    options = []
+    for item in results:
+        dest_id = item.get("dest_id") or item.get("id")
+        if not dest_id:
+            continue
+        name = item.get("name") or item.get("city_name") or query
+        country = item.get("country") or item.get("region")
+        label = f"{name}, {country}" if country else name
+        options.append((label, {"dest_id": str(dest_id), "city_name": name}))
+
+    return options
 
 # 3. Streamlit Page Config
 st.set_page_config(page_title=ui_config.page_title, page_icon=ui_config.page_icon, layout=ui_config.layout)
@@ -74,7 +120,16 @@ col1, col2 = st.columns(2)
 with col1:
     origin_input = st.text_input("Origin", placeholder="e.g., Turin, TRN, or Italy")
 with col2:
-    dest_input = st.text_input("Destination", placeholder="e.g., Istanbul, IST, or Turkey")
+    # Live search against Booking.com's Autocomplete API - the user picks an
+    # exact match, so its dest_id can be used directly by hotel sourcing
+    # instead of being re-guessed from free text downstream.
+    dest_selection = st_searchbox(
+        _search_booking_destinations,
+        placeholder="e.g., Istanbul, Turkey",
+        label="Destination",
+        key="destination_searchbox",
+    )
+    dest_input = dest_selection["city_name"] if dest_selection else None
 
 col3, col4 = st.columns(2)
 today = datetime.date.today()
@@ -134,8 +189,8 @@ if "messages" not in st.session_state:
 
 if submit_button:
     # --- VALIDATION CHECK ---
-    if not origin_input or not dest_input or not currency_input or not start_date or not end_date:
-        st.error("⚠️ Please fill out all required fields (Origin, Destination, Dates, and Currency) before planning your trip.")
+    if not origin_input or not dest_selection or not currency_input or not start_date or not end_date:
+        st.error("⚠️ Please fill out all required fields, including selecting a Destination from the search results, before planning your trip.")
     else:
         dates_str = f"{start_date.strftime('%b %d')} - {end_date.strftime('%b %d')}"
         currency_code = currency_input.split(" ")[1]
@@ -163,7 +218,8 @@ if submit_button:
             "chat_history": formatted_chat_history,
             "origin": None,
             "destination": None,
-            "destination_city": None,
+            "destination_city": dest_selection["city_name"],
+            "hotel_dest_id": dest_selection["dest_id"],
             "max_budget": None,
             "travel_dates": None,
             "travelers": travelers_input,
