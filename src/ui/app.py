@@ -229,13 +229,29 @@ if submit_button:
             "next_node": ""
         }
 
+        # Friendly labels for each real graph node (src/main.py), in pipeline order.
+        NODE_LABELS = {
+            "supervisor": "🧭 Supervisor parsing constraints and dates...",
+            "sourcing": "📡 Sourcing live flight & hotel data...",
+            "rag": "📚 Estimating hidden costs (baggage fees)...",
+            "optimization": "🧮 Optimizer crunching combinations against budget...",
+        }
+
+        output = dict(initial_state)
         with st.status("🤖 WayMax Agents Executing...", expanded=True) as status:
-            st.write("⏳ Supervisor parsing constraints and dates...")
-            st.write("⏳ Sourcing Node retrieving live APIs (Flight & Hotel)...")
-            st.write("⏳ Optimizer crunching combinations against budget...")
-            
-            output = app.invoke(initial_state)
-            
+            step_placeholders = {node: st.empty() for node in NODE_LABELS}
+            for node in NODE_LABELS:
+                step_placeholders[node].write(f"⏳ {NODE_LABELS[node]}")
+
+            # stream_mode="updates" yields one {node_name: state_delta} chunk per
+            # completed node, so the status list can check items off as the
+            # pipeline actually progresses instead of showing static text.
+            for chunk in app.stream(initial_state, stream_mode="updates"):
+                for node, state_delta in chunk.items():
+                    output.update(state_delta)
+                    if node in step_placeholders:
+                        step_placeholders[node].write(f"✅ {NODE_LABELS[node]}")
+
             status.update(label="✅ Optimization Complete!", state="complete", expanded=False)
 
         final_itinerary = output.get("final_itinerary")
