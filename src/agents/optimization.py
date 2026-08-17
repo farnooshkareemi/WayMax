@@ -1,3 +1,4 @@
+import logging
 from typing import Dict, Any
 from datetime import datetime
 import re
@@ -5,12 +6,15 @@ import math
 from src.config import load_config
 from src.metrics import get_current_run, node_timer
 
+logger = logging.getLogger(__name__)
+
+
 def optimizer_node(state: Dict[str, Any]) -> Dict[str, Any]:
     """
     Optimization node that finds the cheapest combination of flights and hotels
     within the user's budget, accurately calculating the duration of the stay and rooms needed.
     """
-    print("--- STARTING OPTIMIZER NODE ---")
+    logger.info("Starting optimizer node")
 
     run_metrics = get_current_run()
     timer = node_timer(run_metrics, "optimizer") if run_metrics else None
@@ -106,11 +110,22 @@ def optimizer_node(state: Dict[str, Any]) -> Dict[str, Any]:
 
     # Terminal confirmation of rich data extraction
     if best_combination:
-        print(f"DEBUG: Optimizer selected best itinerary for {travelers} traveler(s) ({rooms_needed} room(s)) totaling {best_combination['total_price']}")
-        print(f"DEBUG: --> Selected Flight: {best_combination['flight'].get('flight_number', 'N/A')} departing at {best_combination['flight'].get('departure_time', 'N/A')}")
-        print(f"DEBUG: --> Selected Hotel: {best_combination['hotel'].get('name', 'N/A')} located at {best_combination['hotel'].get('address', 'N/A')}")
+        logger.info(
+            "Optimizer selected best itinerary for %s traveler(s) (%s room(s)) totaling %s",
+            travelers, rooms_needed, best_combination["total_price"],
+        )
+        logger.debug(
+            "--> Selected Flight: %s departing at %s",
+            best_combination["flight"].get("flight_number", "N/A"),
+            best_combination["flight"].get("departure_time", "N/A"),
+        )
+        logger.debug(
+            "--> Selected Hotel: %s located at %s",
+            best_combination["hotel"].get("name", "N/A"),
+            best_combination["hotel"].get("address", "N/A"),
+        )
     else:
-        print("DEBUG: Optimizer failed to find any valid combinations.")
+        logger.info("Optimizer failed to find any valid combinations.")
 
     if run_metrics:
         run_metrics.set_optimizer_quality(
