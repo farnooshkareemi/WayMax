@@ -131,6 +131,12 @@ with col2:
         placeholder="e.g., Istanbul, Turkey",
         label="Destination",
         key="destination_searchbox",
+        # A background rerun_on_update=True rerun could land after the user
+        # already clicked "Plan My Trip", re-executing the whole script (and
+        # the still-true submit block) a second time mid-pipeline. Disabling
+        # it means dropdown results appear on the widget's own next natural
+        # interaction instead of forcing an app-wide rerun.
+        rerun_on_update=False,
     )
     dest_input = dest_selection["city_name"] if dest_selection else None
 
