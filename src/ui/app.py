@@ -138,7 +138,7 @@ with col4:
     min_end = start_date if start_date else today
     end_date = st.date_input("Till", value=None, min_value=min_end, format="YYYY-MM-DD")
 
-col5, col6, col7, col8 = st.columns(4)
+col5, col6, col7 = st.columns(3)
 with col5:
     currency_input = st.selectbox("Currency", options=CURRENCIES, index=None, placeholder="Choose...")
 with col6:
@@ -159,25 +159,26 @@ with col7:
         value=ui_config.travelers.default,
         step=ui_config.travelers.step,
     )
-with col8:
-    st.write("Min Hotel Stars")
-    raw_stars = st.feedback("stars", key="min_stars")
-    stars_input = (raw_stars + 1) if raw_stars is not None else ui_config.min_hotel_stars_default
 
 st.write("")
 
-# --- FLIGHT PREFERENCES ---
-st.write("**Flight Preferences**")
-col_f1, col_f2 = st.columns(2)
-with col_f1:
-    direct_flights_input = st.checkbox("Direct Flights Only (No Layovers)", value=False)
-with col_f2:
-    max_flight_hours = st.slider(
-        "Max Flight Duration (Hours)",
-        min_value=ui_config.max_flight_hours.min,
-        max_value=ui_config.max_flight_hours.max,
-        value=ui_config.max_flight_hours.default,
-    )
+# --- FILTERS ---
+# Everything that narrows results (rather than defining the trip itself)
+# lives together here instead of being spread across the form.
+with st.expander("Filters"):
+    col_f1, col_f2 = st.columns(2)
+    with col_f1:
+        st.write("Min Hotel Stars")
+        raw_stars = st.feedback("stars", key="min_stars")
+        stars_input = (raw_stars + 1) if raw_stars is not None else ui_config.min_hotel_stars_default
+        direct_flights_input = st.checkbox("Direct Flights Only (No Layovers)", value=False)
+    with col_f2:
+        max_flight_hours = st.slider(
+            "Max Flight Duration (Hours)",
+            min_value=ui_config.max_flight_hours.min,
+            max_value=ui_config.max_flight_hours.max,
+            value=ui_config.max_flight_hours.default,
+        )
 
 submit_button = st.button("Plan My Trip", use_container_width=True, type="primary")
 st.divider()
