@@ -118,9 +118,27 @@ with st.spinner("Initializing WayMax Engine..."):
 CURRENCIES = ui_config.currencies
 
 # --- MAIN PAGE ---
-st.title(ui_config.page_title)
+# A small hand-drawn-feeling paper-plane doodle next to the title - the one
+# deliberate decorative touch, in the navy/pink palette, static and
+# low-opacity so it stays secondary to the actual content.
+st.markdown(
+    f"""
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:0.2rem">
+        <svg viewBox="0 0 48 48" width="40" height="40" style="flex:none">
+            <path
+                d="M6 24 L42 8 L30 24 L42 40 L26 30 L18 38 L16 26 Z"
+                fill="none" stroke="#003049" stroke-width="2.2"
+                stroke-linejoin="round" stroke-linecap="round"
+            />
+            <path d="M18 38 L26 30 L18 26 Z" fill="#FFB3C6" opacity="0.9"/>
+        </svg>
+        <h1 style="margin:0">{ui_config.page_title}</h1>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 st.caption("AI-powered travel planning and itinerary optimization")
-st.write("") 
+st.write("")
 
 # --- CENTRAL SEARCH INTERFACE ---
 st.subheader("Your Next Adventure?")
