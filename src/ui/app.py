@@ -98,7 +98,7 @@ st.markdown(
     """
     <style>
     .st-key-summary-card {
-        box-shadow: 0 6px 20px rgba(0, 48, 73, 0.10);
+        box-shadow: 0 6px 20px rgba(27, 38, 59, 0.10);
     }
     </style>
     """,
@@ -127,7 +127,7 @@ st.markdown(
         <svg viewBox="0 0 48 48" width="40" height="40" style="flex:none">
             <path
                 d="M6 24 L42 8 L30 24 L42 40 L26 30 L18 38 L16 26 Z"
-                fill="none" stroke="#003049" stroke-width="2.2"
+                fill="none" stroke="#1B263B" stroke-width="2.2"
                 stroke-linejoin="round" stroke-linecap="round"
             />
             <path d="M18 38 L26 30 L18 26 Z" fill="#FFB3C6" opacity="0.9"/>

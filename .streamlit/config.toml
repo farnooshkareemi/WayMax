@@ -13,7 +13,7 @@ fileWatcherType = "none"
 # light/dark toggle in the app's settings menu (top-right "⋮" icon) - no
 # custom CSS or session_state toggle code needed.
 #
-# Palette built from two user-specified colors: #003049 (deep navy - used as
+# Palette built from two user-specified colors: #1b263b (slate navy - used as
 # ink/headings in light mode, and as the page ground in dark mode) and
 # #ffb3c6 (soft pink - the primary accent in both modes). Surfaces/borders
 # are derived neutrals so the two anchor colors have room to read as accents
@@ -26,7 +26,7 @@ fileWatcherType = "none"
 primaryColor = "#FFB3C6"
 backgroundColor = "#FFFFFF"
 secondaryBackgroundColor = "#FFF3F6"
-textColor = "#003049"
+textColor = "#1B263B"
 borderColor = "#FFD9E3"
 baseRadius = "1.25rem"
 buttonRadius = "full"
@@ -36,10 +36,10 @@ headingFont = "Quicksand:https://fonts.googleapis.com/css2?family=Quicksand:wght
 
 [theme.dark]
 primaryColor = "#FFB3C6"
-backgroundColor = "#003049"
-secondaryBackgroundColor = "#0A3F5C"
+backgroundColor = "#1B263B"
+secondaryBackgroundColor = "#25324A"
 textColor = "#F5F7FA"
-borderColor = "#154A66"
+borderColor = "#334159"
 baseRadius = "1.25rem"
 buttonRadius = "full"
 showWidgetBorder = true
