@@ -11,28 +11,37 @@ fileWatcherType = "none"
 
 # Defining both [theme.light] and [theme.dark] makes Streamlit show its own
 # light/dark toggle in the app's settings menu (top-right "⋮" icon) - no
-# custom CSS or session_state toggle code needed. Replaces the old hand-rolled
-# stock-photo background with a clean, deliberate palette in both modes.
+# custom CSS or session_state toggle code needed.
 #
-# baseRadius/buttonRadius use Streamlit's native theming (not custom CSS) to
-# get soft, rounded corners on cards/inputs/buttons - a warmer coral/teal
-# travel-brand palette instead of the earlier plain blue.
+# Palette adapted from the Waymax design mock (Waymax.dc.html): a blush-pink
+# ground, deep-plum ink, rose-pink primary accent, and a navy secondary used
+# for section labels/route markers. baseRadius/buttonRadius give the same
+# pill-shaped buttons and rounded cards as the mock, natively (no custom CSS).
+# The dark palette isn't in the mock (it's light-only) - derived by keeping
+# the same accent/ink relationships against a dark plum ground instead.
+# Nunito (body) + Quicksand (headings) match the mock's pairing. Streamlit's
+# font/headingFont accept a "<name>:<url>" Google Fonts CSS URL natively, so
+# this needs no custom CSS or unsafe_allow_html injection either.
 [theme.light]
-primaryColor = "#FF6B5B"
-backgroundColor = "#FFFFFF"
-secondaryBackgroundColor = "#FFF5F2"
-textColor = "#1F2937"
-borderColor = "#F3D9D3"
-baseRadius = "1rem"
+primaryColor = "#E8748F"
+backgroundColor = "#FDEEF1"
+secondaryBackgroundColor = "#FFFFFF"
+textColor = "#2C2438"
+borderColor = "#E3D5DC"
+baseRadius = "1.25rem"
 buttonRadius = "full"
 showWidgetBorder = true
+font = "Nunito:https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap"
+headingFont = "Quicksand:https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&display=swap"
 
 [theme.dark]
-primaryColor = "#FF8A75"
-backgroundColor = "#14100F"
-secondaryBackgroundColor = "#1F1917"
-textColor = "#F5EDEA"
-borderColor = "#3A2C27"
-baseRadius = "1rem"
+primaryColor = "#E8748F"
+backgroundColor = "#221A29"
+secondaryBackgroundColor = "#2C2334"
+textColor = "#F3EAEF"
+borderColor = "#3D2F45"
+baseRadius = "1.25rem"
 buttonRadius = "full"
 showWidgetBorder = true
+font = "Nunito:https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap"
+headingFont = "Quicksand:https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&display=swap"
