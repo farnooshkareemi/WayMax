@@ -13,14 +13,26 @@ fileWatcherType = "none"
 # light/dark toggle in the app's settings menu (top-right "⋮" icon) - no
 # custom CSS or session_state toggle code needed. Replaces the old hand-rolled
 # stock-photo background with a clean, deliberate palette in both modes.
+#
+# baseRadius/buttonRadius use Streamlit's native theming (not custom CSS) to
+# get soft, rounded corners on cards/inputs/buttons - a warmer coral/teal
+# travel-brand palette instead of the earlier plain blue.
 [theme.light]
-primaryColor = "#1A56DB"
+primaryColor = "#FF6B5B"
 backgroundColor = "#FFFFFF"
-secondaryBackgroundColor = "#F8F9FA"
-textColor = "#111827"
+secondaryBackgroundColor = "#FFF5F2"
+textColor = "#1F2937"
+borderColor = "#F3D9D3"
+baseRadius = "1rem"
+buttonRadius = "full"
+showWidgetBorder = true
 
 [theme.dark]
-primaryColor = "#3B82F6"
-backgroundColor = "#0F1115"
-secondaryBackgroundColor = "#161A20"
-textColor = "#E5E7EB"
+primaryColor = "#FF8A75"
+backgroundColor = "#14100F"
+secondaryBackgroundColor = "#1F1917"
+textColor = "#F5EDEA"
+borderColor = "#3A2C27"
+baseRadius = "1rem"
+buttonRadius = "full"
+showWidgetBorder = true
