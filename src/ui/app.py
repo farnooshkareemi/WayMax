@@ -82,12 +82,28 @@ def _search_booking_destinations(query: str) -> list[tuple[str, dict]]:
     return options
 
 # 3. Streamlit Page Config
-# Light/dark palette lives in .streamlit/config.toml ([theme.light]/[theme.dark]),
-# which gives users a native theme toggle in Streamlit's own settings menu -
-# replaces the old hand-rolled stock-photo background + CSS overlay.
+# Light/dark palette, fonts, and radii live in .streamlit/config.toml
+# ([theme.light]/[theme.dark]), which also gives users a native light/dark
+# toggle in Streamlit's own settings menu - replaces the old hand-rolled
+# stock-photo background + CSS overlay.
 # No custom page_icon/emoji - kept text-only per a deliberate no-icons choice
 # (the hotel star rating is the one intentional exception).
 st.set_page_config(page_title=ui_config.page_title, layout=ui_config.layout)
+
+# Soft card shadow: Streamlit's theme has no native shadow token, so this is
+# the one deliberate custom-CSS addition, scoped to the st-key-summary-card
+# class (Streamlit's own documented `key=` mechanism, not a guessed internal
+# testid) so it can't leak into or clash with any other component.
+st.markdown(
+    """
+    <style>
+    .st-key-summary-card {
+        box-shadow: 0 6px 20px rgba(44, 36, 56, 0.08);
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
 # 4. Cache the LangGraph application
 @st.cache_resource
@@ -288,7 +304,10 @@ if submit_button:
             # --- AT-A-GLANCE SUMMARY CARD ---
             # Shown before the tabs so the "here's your trip" result lands in
             # the first second, without needing to click into a tab first.
-            with st.container(border=True):
+            # key="summary-card" gives this container a stable "st-key-summary-card"
+            # CSS class (Streamlit's own documented mechanism) so the soft card
+            # shadow below can target it without guessing internal testids.
+            with st.container(border=True, key="summary-card"):
                 summary_col1, summary_col2 = st.columns([3, 2])
                 with summary_col1:
                     st.markdown(f"### {origin_input} → {dest_input}")
