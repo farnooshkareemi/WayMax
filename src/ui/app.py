@@ -98,7 +98,7 @@ st.markdown(
     """
     <style>
     .st-key-summary-card {
-        box-shadow: 0 6px 20px rgba(44, 36, 56, 0.08);
+        box-shadow: 0 6px 20px rgba(0, 48, 73, 0.10);
     }
     </style>
     """,
