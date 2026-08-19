@@ -316,7 +316,9 @@ if submit_button:
             total_price = final_itinerary.get("total_price", 0.0)
             flight_cost = final_itinerary.get("flight_cost", 0.0)
             hotel_total_cost = final_itinerary.get("hotel_total_cost", 0.0)
+            baggage_cost = final_itinerary.get("baggage_cost", 0.0)
             within_budget = final_itinerary.get("within_budget", False)
+            cost_per_traveler = total_price / travelers_input if travelers_input else total_price
 
             # --- AT-A-GLANCE SUMMARY CARD ---
             # Shown before the tabs so the "here's your trip" result lands in
@@ -342,15 +344,24 @@ if submit_button:
             tab_overview, tab_flight, tab_hotel = st.tabs(["Itinerary Overview", "Flight Details", "Hotel Details"])
             
             with tab_overview:
-                if within_budget:
-                    st.success("**Optimized Plan & Within Budget**")
-                else:
-                    st.warning("**Exceeds Budget Constraint**")
+                # The trip summary card above already shows route/dates/total/
+                # budget status, so this tab surfaces what that card doesn't:
+                # a full cost breakdown (including the RAG-estimated baggage
+                # fee, otherwise shown nowhere in the UI) and a per-traveler
+                # figure.
+                st.write(f"**Cost per traveler:** {currency_symbol}{cost_per_traveler:,.2f}")
 
-                col_ov1, col_ov2, col_ov3 = st.columns(3)
-                col_ov1.metric("TOTAL COST", f"{currency_symbol}{total_price:,.2f}")
-                col_ov2.metric("FLIGHT COST", f"{currency_symbol}{flight_cost:,.2f}")
-                col_ov3.metric("HOTEL COST", f"{currency_symbol}{hotel_total_cost:,.2f}")
+                st.write("")
+                breakdown_col1, breakdown_col2 = st.columns(2)
+                with breakdown_col1:
+                    st.metric("Flight", f"{currency_symbol}{flight_cost:,.2f}")
+                    st.metric("Hotel", f"{currency_symbol}{hotel_total_cost:,.2f}")
+                with breakdown_col2:
+                    st.metric("Estimated Baggage Fees", f"{currency_symbol}{baggage_cost:,.2f}")
+                    st.metric("Total", f"{currency_symbol}{total_price:,.2f}")
+
+                if not within_budget:
+                    st.warning("This is the cheapest available combination, but it still exceeds your budget.")
 
             with tab_flight:
                 st.subheader("Outbound Flight")
