@@ -104,6 +104,23 @@ def test_rag_node_handles_empty_flight_list(temp_collection):
     assert out["next_node"] == "optimizer"
 
 
+def test_rag_node_preserves_sourcing_errors_from_earlier_in_the_run(temp_collection):
+    """sourcing_errors has no LangGraph reducer, so rag_node must read and
+    extend the incoming list rather than silently overwrite it - otherwise a
+    real sourcing_node failure earlier in the same run would disappear by the
+    time the UI reads final state."""
+    out = rag_node({
+        "raw_flight_data": [{"name": "Ryanair", "price": 100.0}],
+        "sourcing_errors": ["Flight search failed: simulated"],
+    })
+    assert "Flight search failed: simulated" in out["sourcing_errors"]
+
+
+def test_rag_node_defaults_sourcing_errors_to_empty_list(temp_collection):
+    out = rag_node({"raw_flight_data": []})
+    assert out["sourcing_errors"] == []
+
+
 def test_rag_node_records_metrics_when_run_is_active(temp_collection):
     metrics = new_run()
     rag_node({"raw_flight_data": [{"name": "Ryanair", "price": 100.0}]})

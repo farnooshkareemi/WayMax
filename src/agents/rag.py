@@ -31,19 +31,26 @@ def rag_node(state: Dict[str, Any]) -> Dict[str, Any]:
 
     raw_flight_data = state.get("raw_flight_data", [])
     enriched_flights = []
+    # sourcing_errors has no LangGraph reducer, so this node must read and
+    # extend whatever sourcing_node already put there, not overwrite it -
+    # otherwise a real sourcing failure would silently disappear once RAG runs.
+    sourcing_errors = list(state.get("sourcing_errors", []))
     # RAG lookups fail together (e.g. torch/Chroma unavailable) or not at all -
     # log the first failure per run with a traceback, then only debug-log the
     # rest, so one root cause doesn't produce N duplicate warnings/tracebacks
-    # for an N-flight result set.
+    # for an N-flight result set. Only a real exception counts as a sourcing
+    # error here - "no baggage policy found for this airline" is a legitimate
+    # empty result (see retriever.py), not a failure.
     logged_failure = False
 
     for flight in raw_flight_data:
         airline = flight.get("name")
         try:
             fee = estimate_checked_bag_fee(airline)
-        except Exception:
+        except Exception as e:
             if not logged_failure:
                 logger.warning("RAG lookup failed for '%s' (further failures this run logged at debug level)", airline, exc_info=True)
+                sourcing_errors.append(f"Baggage fee estimate unavailable: {e}")
                 logged_failure = True
             else:
                 logger.debug("RAG lookup failed for '%s'", airline, exc_info=True)
@@ -63,5 +70,6 @@ def rag_node(state: Dict[str, Any]) -> Dict[str, Any]:
 
     return {
         "raw_flight_data": enriched_flights,
+        "sourcing_errors": sourcing_errors,
         "next_node": "optimizer",
     }
