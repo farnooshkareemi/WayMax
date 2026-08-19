@@ -261,6 +261,7 @@ if submit_button:
             "max_flight_hours": max_flight_hours, # <-- Added slider value
             "raw_flight_data": [],
             "raw_hotel_data": [],
+            "sourcing_errors": [],
             "final_itinerary": None,
             "next_node": ""
         }
@@ -319,6 +320,7 @@ if submit_button:
             baggage_cost = final_itinerary.get("baggage_cost", 0.0)
             within_budget = final_itinerary.get("within_budget", False)
             cost_per_traveler = total_price / travelers_input if travelers_input else total_price
+            sourcing_errors = output.get("sourcing_errors", [])
 
             # --- AT-A-GLANCE SUMMARY CARD ---
             # Shown before the tabs so the "here's your trip" result lands in
@@ -362,6 +364,15 @@ if submit_button:
 
                 if not within_budget:
                     st.warning("This is the cheapest available combination, but it still exceeds your budget.")
+
+                if sourcing_errors:
+                    st.info(
+                        f"Some data couldn't be fetched during this search (see below), so this "
+                        f"result may be incomplete - e.g. a {currency_symbol}0.00 baggage estimate "
+                        f"could mean the fee lookup failed, not that it's genuinely free."
+                    )
+                    for error in sourcing_errors:
+                        st.caption(f"- {error}")
 
             with tab_flight:
                 st.subheader("Outbound Flight")
@@ -416,11 +427,24 @@ if submit_button:
                 st.write(f"**Total Hotel Cost:** {currency_symbol}{hotel_total_cost:,.2f}")
 
         else:
-            # Check if the failure was specifically due to no flights being found
             raw_flights = output.get("raw_flight_data", [])
             raw_hotels = output.get("raw_hotel_data", [])
-            
-            if not raw_flights and direct_flights_input:
+            sourcing_errors = output.get("sourcing_errors", [])
+
+            # A real API/network failure is a distinct outcome from a search
+            # that genuinely returned zero results - "we couldn't reach the
+            # provider" is not the same claim as "there are no flights for
+            # this route," and conflating them would misrepresent what
+            # actually happened.
+            if sourcing_errors:
+                st.error(
+                    "**Some Data Sources Failed:** WayMax couldn't fully complete this search "
+                    "due to a live data source error, so results may be incomplete or missing "
+                    "rather than genuinely unavailable. Try again in a moment."
+                )
+                for error in sourcing_errors:
+                    st.caption(f"- {error}")
+            elif not raw_flights and direct_flights_input:
                 st.error("**No Direct Flights Found:** We couldn't find any direct flights for this route on these dates. Try unchecking 'Direct Flights Only' or searching for a different route.")
             elif not raw_flights:
                 st.error("**No Flights Found:** We couldn't find any available flights for this route. Please check your origin/destination codes and dates or increase your Max Flight Duration.")
