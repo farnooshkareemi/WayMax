@@ -54,15 +54,23 @@ def retrieve_baggage_policy(airline_name: str) -> Optional[BaggagePolicyMatch]:
     )
 
 
-def estimate_checked_bag_fee(airline_name: str) -> Optional[float]:
+class BaggageFeeEstimate(TypedDict):
+    fee: float
+    source_url: str
+    source_text: str
+
+
+def estimate_checked_bag_fee_detailed(airline_name: str) -> Optional[BaggageFeeEstimate]:
     """Return a rough single-checked-bag fee estimate (EUR) for the given
-    airline, parsed from the retrieved policy text's price range. Returns the
-    midpoint of the first EUR/GBP price range found, or None if no policy
-    text or no parseable price range was found.
+    airline, parsed from the retrieved policy text's price range, along with
+    the source document it was drawn from. Returns None if no policy text or
+    no parseable price range was found.
 
     This is intentionally a rough estimate for budget-impact purposes, not a
     precise fare lookup -- real per-bag pricing depends on route, season and
-    booking channel, as the source documents themselves state.
+    booking channel, as the source documents themselves state. The source_url
+    is what lets a user verify or challenge that estimate themselves rather
+    than trust an unlabeled number.
     """
     match = retrieve_baggage_policy(airline_name)
     if match is None:
@@ -73,4 +81,12 @@ def estimate_checked_bag_fee(airline_name: str) -> Optional[float]:
         return None
 
     low, high = float(price_range.group(1)), float(price_range.group(2))
-    return round((low + high) / 2, 2)
+    fee = round((low + high) / 2, 2)
+    return BaggageFeeEstimate(fee=fee, source_url=match["source_url"], source_text=match["text"])
+
+
+def estimate_checked_bag_fee(airline_name: str) -> Optional[float]:
+    """Backwards-compatible wrapper returning just the fee (see
+    estimate_checked_bag_fee_detailed for the source_url/source_text too)."""
+    detailed = estimate_checked_bag_fee_detailed(airline_name)
+    return detailed["fee"] if detailed else None

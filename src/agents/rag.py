@@ -3,8 +3,10 @@
 Sits between sourcing and optimization in the graph. For each flight in
 raw_flight_data, looks up the airline's baggage policy in the local Chroma
 knowledge base (see src/rag/retriever.py) and attaches a rough per-bag fee
-estimate so the optimizer's budget math can account for it -- addressing the
-"hidden non-API costs" strategy described in README.md.
+estimate -- plus the source document it came from, so a user can verify or
+challenge the number rather than trust an unlabeled figure -- so the
+optimizer's budget math can account for it, addressing the "hidden non-API
+costs" strategy described in README.md.
 
 If no policy is found for an airline (not yet in the knowledge base) or the
 RAG layer fails for any reason, flights are passed through unmodified with a
@@ -16,7 +18,7 @@ import logging
 from typing import Dict, Any
 
 from src.metrics import get_current_run, node_timer
-from src.rag.retriever import estimate_checked_bag_fee
+from src.rag.retriever import estimate_checked_bag_fee_detailed
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +48,7 @@ def rag_node(state: Dict[str, Any]) -> Dict[str, Any]:
     for flight in raw_flight_data:
         airline = flight.get("name")
         try:
-            fee = estimate_checked_bag_fee(airline)
+            detailed = estimate_checked_bag_fee_detailed(airline)
         except Exception as e:
             if not logged_failure:
                 logger.warning("RAG lookup failed for '%s' (further failures this run logged at debug level)", airline, exc_info=True)
@@ -54,14 +56,15 @@ def rag_node(state: Dict[str, Any]) -> Dict[str, Any]:
                 logged_failure = True
             else:
                 logger.debug("RAG lookup failed for '%s'", airline, exc_info=True)
-            fee = None
+            detailed = None
 
         enriched = dict(flight)
-        enriched["baggage_fee_estimate"] = fee if fee is not None else 0.0
+        enriched["baggage_fee_estimate"] = detailed["fee"] if detailed else 0.0
+        enriched["baggage_fee_source_url"] = detailed["source_url"] if detailed else None
         enriched_flights.append(enriched)
 
-        if fee is not None:
-            logger.debug("Baggage fee estimate for %s: %s", airline, fee)
+        if detailed:
+            logger.debug("Baggage fee estimate for %s: %s (source: %s)", airline, detailed["fee"], detailed["source_url"])
         else:
             logger.debug("No baggage policy found for '%s', assuming 0.0", airline)
 

@@ -36,7 +36,7 @@ from src.agents.rag import rag_node
 from src.metrics import new_run
 from src.rag import knowledge_base, retriever
 from src.rag.knowledge_base import build_baggage_collection
-from src.rag.retriever import estimate_checked_bag_fee, retrieve_baggage_policy
+from src.rag.retriever import estimate_checked_bag_fee, estimate_checked_bag_fee_detailed, retrieve_baggage_policy
 
 
 @pytest.fixture
@@ -83,6 +83,22 @@ def test_estimate_checked_bag_fee_unknown_airline_returns_none(temp_collection):
     assert fee is None or isinstance(fee, float)
 
 
+def test_estimate_checked_bag_fee_detailed_includes_source(temp_collection):
+    detailed = estimate_checked_bag_fee_detailed("Ryanair")
+    assert detailed is not None
+    assert 0 < detailed["fee"] < 200
+    assert detailed["source_url"].startswith("http")
+    assert "Ryanair" in detailed["source_text"]
+
+
+def test_estimate_checked_bag_fee_matches_detailed_fee(temp_collection):
+    """The simple wrapper must return exactly the same fee as the detailed
+    version, not a separately-computed value."""
+    fee = estimate_checked_bag_fee("Ryanair")
+    detailed = estimate_checked_bag_fee_detailed("Ryanair")
+    assert fee == detailed["fee"]
+
+
 def test_rag_node_enriches_flights_with_baggage_estimate(temp_collection):
     state = {
         "raw_flight_data": [
@@ -95,7 +111,23 @@ def test_rag_node_enriches_flights_with_baggage_estimate(temp_collection):
     for flight in out["raw_flight_data"]:
         assert "baggage_fee_estimate" in flight
         assert isinstance(flight["baggage_fee_estimate"], float)
+        # A known airline in the knowledge base should carry its source URL
+        # forward too, so the UI can show where the estimate came from.
+        assert flight["baggage_fee_source_url"] is not None
+        assert flight["baggage_fee_source_url"].startswith("http")
     assert out["next_node"] == "optimizer"
+
+
+def test_rag_node_sets_source_url_to_none_only_when_estimate_is_zero(temp_collection):
+    """baggage_fee_source_url must be None exactly when baggage_fee_estimate
+    is the 0.0 fallback - never a source URL paired with a 0.0 fee, and never
+    a nonzero fee with no source to back it."""
+    out = rag_node({"raw_flight_data": [{"name": "Ryanair", "price": 50.0}]})
+    flight = out["raw_flight_data"][0]
+    if flight["baggage_fee_estimate"] == 0.0:
+        assert flight["baggage_fee_source_url"] is None
+    else:
+        assert flight["baggage_fee_source_url"] is not None
 
 
 def test_rag_node_handles_empty_flight_list(temp_collection):
