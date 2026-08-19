@@ -12,6 +12,26 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 
+def _skyscanner_search_link(origin: str, destination: str, check_in_date: str, check_out_date: str) -> str:
+    """Build a Skyscanner search results URL for this route/dates.
+
+    Neither the roundtrip search response nor the Skyscanner API in general
+    exposes a deep link to the specific itinerary found - this is a search
+    page for the same route and dates, not a link to book that exact fare
+    (which may have changed price or sold out by the time it's clicked).
+    """
+    d1 = datetime.strptime(check_in_date, "%Y-%m-%d").strftime("%y%m%d")
+    d2 = datetime.strptime(check_out_date, "%Y-%m-%d").strftime("%y%m%d")
+    return f"https://www.skyscanner.com/transport/flights/{origin.lower()}/{destination.lower()}/{d1}/{d2}/"
+
+
+def _booking_hotel_link(hotel_id: Any) -> str:
+    """Build a direct Booking.com search-results URL for a specific property
+    ID (dest_type=hotel), so it opens straight to that hotel rather than a
+    generic city search."""
+    return f"https://www.booking.com/searchresults.html?dest_type=hotel&dest_id={hotel_id}"
+
+
 def sourcing_node(state: Dict[str, Any]) -> Dict[str, Any]:
     logger.info("Starting sourcing node")
     config = load_config().sourcing
@@ -145,6 +165,12 @@ def sourcing_node(state: Dict[str, Any]) -> Dict[str, Any]:
             outbound_flight_num = outbound_segments[0].get("flight", "TBD") if outbound_segments else "TBD"
             inbound_flight_num = inbound_segments[0].get("flight", "TBD") if inbound_segments else "TBD"
 
+            try:
+                search_link = _skyscanner_search_link(origin, destination, check_in_date, check_out_date)
+            except Exception:
+                logger.debug("Failed to build Skyscanner search link", exc_info=True)
+                search_link = None
+
             raw_flight_data.append({
                 "name": str(airline),
                 "price": total_price,
@@ -154,7 +180,8 @@ def sourcing_node(state: Dict[str, Any]) -> Dict[str, Any]:
                 "return_flight_number": str(inbound_flight_num),
                 "return_departure_time": str(inbound_leg.get("dep", "TBD")).replace("T", " ")[:16],
                 "return_arrival_time": str(inbound_leg.get("arr", "TBD")).replace("T", " ")[:16],
-                "cabin_class": "Economy"
+                "cabin_class": "Economy",
+                "search_link": search_link,
             })
 
         logger.info("Successfully parsed %d live round-trip flights", len(raw_flight_data))
@@ -277,23 +304,27 @@ def sourcing_node(state: Dict[str, Any]) -> Dict[str, Any]:
                     continue
 
                 name = prop.get("name", "Unknown Hotel")
-                
+
                 price = 0.0
                 price_breakdown = prop.get("priceBreakdown", {})
                 if price_breakdown:
                     gross_price = price_breakdown.get("grossPrice", {})
                     price = float(gross_price.get("value", 0.0))
-                    
+
                 # Dynamically fetch real address if available
                 address = prop.get("address", f"Central {destination}")
-                
+
+                hotel_id = prop.get("id")
+                booking_link = _booking_hotel_link(hotel_id) if hotel_id else None
+
                 if price > 0:
                     raw_hotel_data.append({
                         "name": str(name),
                         "price_per_night": round(price / nights, 2),
                         "address": address,
                         "rating": int(hotel_stars),
-                        "room_type": "Standard Room"
+                        "room_type": "Standard Room",
+                        "booking_link": booking_link,
                     })
                     
             logger.info("Successfully parsed %d live Booking.com hotels", len(raw_hotel_data))

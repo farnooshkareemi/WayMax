@@ -79,6 +79,7 @@ def mock_hotel_search_response():
     resp.json = lambda: {
         "data": [
             {
+                "id": 217618,
                 "propertyClass": 4,
                 "name": "Test Hotel",
                 "priceBreakdown": {"grossPrice": {"value": 250}},

@@ -4,7 +4,7 @@ RapidAPI calls are mocked via the fixtures in conftest.py — no real network
 traffic or API keys required.
 """
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from src.agents.sourcing import sourcing_node
 from src.metrics import new_run
@@ -36,11 +36,13 @@ def test_happy_path_parses_flights_and_hotels(mock_requests_get):
     assert len(out["raw_flight_data"]) == 1
     assert out["raw_flight_data"][0]["name"] == "TestAir"
     assert out["raw_flight_data"][0]["price"] == 200.0
+    assert out["raw_flight_data"][0]["search_link"] == "https://www.skyscanner.com/transport/flights/lhr/jfk/260920/260925/"
 
     assert len(out["raw_hotel_data"]) == 1
     assert out["raw_hotel_data"][0]["name"] == "Test Hotel"
     # price_per_night = grossPrice / nights = 250 / 5
     assert out["raw_hotel_data"][0]["price_per_night"] == 50.0
+    assert out["raw_hotel_data"][0]["booking_link"] == "https://www.booking.com/searchresults.html?dest_type=hotel&dest_id=217618"
 
     assert out["next_node"] == "optimizer"
     # A fully successful run must not report any sourcing errors - otherwise
@@ -89,6 +91,32 @@ def test_min_stars_filters_out_lower_rated_hotels(mock_requests_get):
             "min_hotel_stars": 5,  # fixture hotel is propertyClass 4, should be filtered out
         })
     assert out["raw_hotel_data"] == []
+
+
+def test_hotel_booking_link_is_none_when_property_has_no_id(mock_hotel_autocomplete_response, mock_flight_response):
+    """Booking.com's response schema isn't guaranteed to always include an id -
+    booking_link must degrade to None rather than build a broken URL."""
+    hotel_resp_no_id = MagicMock(status_code=200)
+    hotel_resp_no_id.raise_for_status = lambda: None
+    hotel_resp_no_id.json = lambda: {
+        "data": [{"propertyClass": 4, "name": "Test Hotel", "priceBreakdown": {"grossPrice": {"value": 250}}, "address": "Somewhere"}]
+    }
+
+    def _fake_get(url, headers=None, params=None, timeout=None):
+        if "skyscanner" in url:
+            return mock_flight_response
+        if "autocomplete" in url:
+            return mock_hotel_autocomplete_response
+        return hotel_resp_no_id
+
+    with patch("src.agents.sourcing.requests.get", side_effect=_fake_get):
+        out = sourcing_node({
+            "origin": "LHR", "destination": "JFK",
+            "travel_dates": "2026-09-20 to 2026-09-25",
+        })
+
+    assert len(out["raw_hotel_data"]) == 1
+    assert out["raw_hotel_data"][0]["booking_link"] is None
 
 
 def test_hotel_dest_id_short_circuits_autocomplete(mock_requests_get):
