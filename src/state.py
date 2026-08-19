@@ -17,5 +17,9 @@ class WaymaxState(TypedDict):
     max_flight_hours: Optional[int]
     raw_flight_data: List[dict]  # each dict gains "baggage_fee_estimate" after the rag node runs
     raw_hotel_data: List[dict]
+    sourcing_errors: List[str]   # human-readable notes when a sourcing/RAG API call actually
+                                  # failed, vs. a search that genuinely returned zero results -
+                                  # lets the UI distinguish "no flights exist" from "couldn't reach
+                                  # the provider" instead of showing the same empty-results message
     final_itinerary: Optional[dict]
     next_node: str
