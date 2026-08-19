@@ -24,8 +24,38 @@ supervisor --(destination found)--> sourcing --> rag --> optimization --> END
 |---|---|---|
 | **Supervisor** | [`src/agents/supervisor.py`](src/agents/supervisor.py) | The only node that reads conversation history. Uses Gemini 2.5 Flash with structured output to extract origin/destination **IATA airport codes**, dates, budget, and traveler count from free text. Routes to `sourcing` only if a destination was found. |
 | **Sourcing** | [`src/agents/sourcing.py`](src/agents/sourcing.py) | Pure data retrieval — never converses, never guesses. Calls the Skyscanner flights API and the Booking.com hotels API in parallel, filtered by the user's direct-flight/star-rating/duration preferences. Any API failure degrades to an empty list rather than raising, so a flaky provider can't crash the whole run. |
-| **RAG** | [`src/agents/rag.py`](src/agents/rag.py) | Enriches each sourced flight with a checked-baggage-fee estimate, retrieved from a local [Chroma](https://www.trychroma.com/) vector store of airline baggage policies (embedded with `sentence-transformers`). This is what lets the optimizer account for costs that never appear in a flight-search API response. |
+| **RAG** | [`src/agents/rag.py`](src/agents/rag.py) | Enriches each sourced flight with a checked-baggage-fee estimate — plus the source document it came from — retrieved from a local [Chroma](https://www.trychroma.com/) vector store of airline baggage policies (embedded with `sentence-transformers`). This is what lets the optimizer account for costs that never appear in a flight-search API response. A configurable distance threshold (`config.rag.max_match_distance`) rejects vector-search matches that are too dissimilar rather than confidently returning the nearest airline's policy regardless of fit — without it, an airline outside the (currently 3-airline) knowledge base would silently inherit an unrelated one's fees. |
 | **Optimizer** | [`src/agents/optimization.py`](src/agents/optimization.py) | Deterministic brute-force search over every (flight × hotel) pair to find the true-cheapest combination — hotel cost scaled by nights and rooms-needed, baggage cost scaled by traveler count — that fits the budget. Falls back to the single cheapest flight + hotel (flagged `within_budget: False`) if nothing fits, rather than returning nothing. |
+
+### Transparency over the numbers shown
+
+Every price WayMax reports falls into one of three categories, and the UI is
+explicit about which is which rather than presenting one blended total:
+
+- **Live-sourced facts** — flight and hotel prices come directly from
+  Skyscanner/Booking.com's own API responses at query time; WayMax filters
+  and formats them but never generates them.
+- **Provably correct computation** — given that sourced data, the optimizer
+  is an exhaustive search, not a heuristic or model guess, so it's
+  mathematically guaranteed to find the true cheapest valid combination
+  (verified by unit tests with hand-computed expected totals).
+- **A labeled estimate** — the RAG-retrieved baggage fee is the one number
+  in the system that isn't a live quote. The UI shows the total both with
+  and without it, links to the exact source document the estimate was
+  drawn from, and says so explicitly when no policy was found for an
+  airline (rather than implying `0.00` means baggage is free).
+
+Sourcing/RAG API failures are also distinguished from genuine empty results:
+`sourcing_errors` in `WaymaxState` is populated only when a data source
+actually failed (network error, non-2xx response), never when a search
+legitimately found nothing — so the UI can tell a user "we couldn't reach a
+provider" apart from "there's really nothing available," instead of
+collapsing both into the same generic message.
+
+Flight and hotel results also link out to a live Skyscanner search (same
+route/dates) and the specific hotel's Booking.com page, respectively —
+neither API returns a direct deep link to the exact result shown, so these
+are constructed rather than extracted, and the UI says so.
 
 Every node is a plain function over a dict (`WaymaxState`), so each is
 independently callable and testable without going through the graph — see
@@ -50,7 +80,8 @@ fields:
 - `origin`, `destination` — IATA airport codes, extracted by the supervisor
 - `destination_city`, `hotel_dest_id` — resolved once by the UI's live search box, used directly by hotel sourcing
 - `max_budget`, `travel_dates`, `travelers`, `min_hotel_stars`, `direct_only`, `max_flight_hours` — user constraints
-- `raw_flight_data`, `raw_hotel_data` — sourced results (flights gain a `baggage_fee_estimate` after the RAG node runs)
+- `raw_flight_data`, `raw_hotel_data` — sourced results (flights gain `baggage_fee_estimate`/`baggage_fee_source_url` after the RAG node runs; both also carry a constructed `search_link`/`booking_link`)
+- `sourcing_errors` — human-readable notes when a sourcing/RAG API call actually failed, distinct from a search that genuinely returned zero results
 - `final_itinerary` — the optimizer's chosen flight + hotel pair, with a full cost breakdown
 
 ## Observability
