@@ -14,6 +14,7 @@ def test_missing_constraints_returns_empty_and_ends():
     out = sourcing_node({"origin": None, "destination": "JFK", "travel_dates": None})
     assert out["raw_flight_data"] == []
     assert out["raw_hotel_data"] == []
+    assert out["sourcing_errors"] == []
     assert out["next_node"] == "end"
 
 
@@ -21,6 +22,7 @@ def test_malformed_dates_returns_empty_and_ends():
     out = sourcing_node({"origin": "LHR", "destination": "JFK", "travel_dates": "garbage"})
     assert out["raw_flight_data"] == []
     assert out["raw_hotel_data"] == []
+    assert out["sourcing_errors"] == []
     assert out["next_node"] == "end"
 
 
@@ -41,6 +43,32 @@ def test_happy_path_parses_flights_and_hotels(mock_requests_get):
     assert out["raw_hotel_data"][0]["price_per_night"] == 50.0
 
     assert out["next_node"] == "optimizer"
+    # A fully successful run must not report any sourcing errors - otherwise
+    # the UI would wrongly tell the user something failed when it didn't.
+    assert out["sourcing_errors"] == []
+
+
+def test_flight_api_exception_is_recorded_as_a_sourcing_error(mock_requests_get):
+    """A genuine API failure (not just zero results) must be distinguishable
+    from a search that legitimately found nothing, so the UI can tell users
+    'we couldn't reach the flight provider' instead of 'no flights exist'."""
+
+    def _failing_get(url, headers=None, params=None, timeout=None):
+        if "skyscanner" in url:
+            raise ConnectionError("simulated network failure")
+        return mock_requests_get(url, headers=headers, params=params, timeout=timeout)
+
+    with patch("src.agents.sourcing.requests.get", side_effect=_failing_get):
+        out = sourcing_node({
+            "origin": "LHR", "destination": "JFK",
+            "travel_dates": "2026-09-20 to 2026-09-25",
+        })
+
+    assert out["raw_flight_data"] == []
+    assert len(out["sourcing_errors"]) == 1
+    assert "Flight search failed" in out["sourcing_errors"][0]
+    # The hotel call is independent and should still succeed.
+    assert len(out["raw_hotel_data"]) == 1
 
 
 def test_direct_only_passes_through_direct_flights(mock_requests_get):

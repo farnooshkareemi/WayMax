@@ -33,13 +33,18 @@ def sourcing_node(state: Dict[str, Any]) -> Dict[str, Any]:
     travelers = state.get("travelers") or 1
     raw_flight_data = []
     raw_hotel_data = []
+    # Distinguishes "an API call actually failed" from "a search genuinely
+    # returned zero results" - both used to collapse to the same empty list,
+    # so the UI had no way to tell a user "we couldn't reach the provider"
+    # apart from "there really are no flights for this route."
+    sourcing_errors = []
     nights = 1
 
     if not all([origin, destination, travel_dates]):
         logger.debug("Missing constraints. Returning empty data.")
         if timer:
             timer.__exit__(None, None, None)
-        return {"raw_flight_data": raw_flight_data, "raw_hotel_data": raw_hotel_data, "next_node": "end"}
+        return {"raw_flight_data": raw_flight_data, "raw_hotel_data": raw_hotel_data, "sourcing_errors": sourcing_errors, "next_node": "end"}
 
     try:
         check_in_date = travel_dates.split(" to ")[0].strip()
@@ -54,7 +59,7 @@ def sourcing_node(state: Dict[str, Any]) -> Dict[str, Any]:
         logger.warning("Date parsing error", exc_info=True)
         if timer:
             timer.__exit__(None, None, None)
-        return {"raw_flight_data": raw_flight_data, "raw_hotel_data": raw_hotel_data, "next_node": "end"}
+        return {"raw_flight_data": raw_flight_data, "raw_hotel_data": raw_hotel_data, "sourcing_errors": sourcing_errors, "next_node": "end"}
 
     # -----------------------------------------
     # 1. RAPIDAPI SKYSCANNER FLIGHTS (round trip)
@@ -163,6 +168,7 @@ def sourcing_node(state: Dict[str, Any]) -> Dict[str, Any]:
 
     except Exception as e:
         logger.warning("RapidAPI Flight Exception", exc_info=True)
+        sourcing_errors.append(f"Flight search failed: {e}")
         if run_metrics:
             status_code = getattr(getattr(e, "response", None), "status_code", None)
             run_metrics.add_api_call("flights_search", ok=False, status_code=status_code)
@@ -225,6 +231,7 @@ def sourcing_node(state: Dict[str, Any]) -> Dict[str, Any]:
                     )
             except Exception as e:
                 logger.warning("Autocomplete API failed", exc_info=True)
+                sourcing_errors.append(f"Hotel destination lookup failed: {e}")
                 if run_metrics:
                     status_code = getattr(getattr(e, "response", None), "status_code", None)
                     run_metrics.add_api_call("hotels_dest_lookup", ok=False, status_code=status_code, cache_hit=False)
@@ -300,6 +307,7 @@ def sourcing_node(state: Dict[str, Any]) -> Dict[str, Any]:
 
     except Exception as e:
         logger.warning("RapidAPI Hotel Exception", exc_info=True)
+        sourcing_errors.append(f"Hotel search failed: {e}")
         if run_metrics:
             status_code = getattr(getattr(e, "response", None), "status_code", None)
             run_metrics.add_api_call("hotels_search", ok=False, status_code=status_code)
@@ -310,5 +318,6 @@ def sourcing_node(state: Dict[str, Any]) -> Dict[str, Any]:
     return {
         "raw_flight_data": raw_flight_data,
         "raw_hotel_data": raw_hotel_data,
+        "sourcing_errors": sourcing_errors,
         "next_node": "optimizer"
     }
