@@ -1,5 +1,7 @@
 # WayMax
 
+[![tests](https://github.com/farnooshkareemi/WayMax/actions/workflows/tests.yml/badge.svg)](https://github.com/farnooshkareemi/WayMax/actions/workflows/tests.yml)
+
 A multi-agent travel planner that turns a natural-language trip request into a
 priced, budget-fitting flight + hotel itinerary — sourced from live flight and
 hotel APIs, cost-adjusted with a retrieval-augmented estimate of hidden fees,
