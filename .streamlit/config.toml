@@ -9,6 +9,12 @@
 # press 'r' in the browser tab or restart `streamlit run` to pick up changes.
 fileWatcherType = "none"
 
+# Serves files from src/ui/static/ (the folder must be named exactly "static"
+# and sit next to app.py - Streamlit's own fixed convention, not configurable)
+# at the URL path app/static/<filename>. Used for the light-mode background
+# illustration (src/ui/static/Pink.png), referenced from CSS in app.py.
+enableStaticServing = true
+
 # Defining both [theme.light] and [theme.dark] makes Streamlit show its own
 # light/dark toggle in the app's settings menu (top-right "⋮" icon) - no
 # custom CSS or session_state toggle code needed.
