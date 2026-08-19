@@ -306,18 +306,22 @@ if submit_button:
             return_flight_num = flight.get("return_flight_number", "TBD")
             return_dep_time = flight.get("return_departure_time", "TBD")
             return_arr_time = flight.get("return_arrival_time", "TBD")
-            
+            flight_search_link = flight.get("search_link")
+            baggage_fee_source_url = flight.get("baggage_fee_source_url")
+
             hotel_name = hotel.get("name", "Unknown Hotel")
             hotel_rate = hotel.get("price_per_night", "N/A")
             hotel_address = hotel.get("address", "Location details unavailable")
             hotel_rating = hotel.get("rating", "N/A")
             room_type = hotel.get("room_type", "Standard Room")
+            hotel_booking_link = hotel.get("booking_link")
 
             duration = final_itinerary.get("nights_staying", "N/A")
             total_price = final_itinerary.get("total_price", 0.0)
             flight_cost = final_itinerary.get("flight_cost", 0.0)
             hotel_total_cost = final_itinerary.get("hotel_total_cost", 0.0)
             baggage_cost = final_itinerary.get("baggage_cost", 0.0)
+            total_price_without_baggage = total_price - baggage_cost
             within_budget = final_itinerary.get("within_budget", False)
             cost_per_traveler = total_price / travelers_input if travelers_input else total_price
             sourcing_errors = output.get("sourcing_errors", [])
@@ -361,6 +365,16 @@ if submit_button:
                 with breakdown_col2:
                     st.metric("Estimated Baggage Fees", f"{currency_symbol}{baggage_cost:,.2f}")
                     st.metric("Total", f"{currency_symbol}{total_price:,.2f}")
+
+                st.write("")
+                st.caption(
+                    f"Without the baggage estimate: {currency_symbol}{total_price_without_baggage:,.2f} "
+                    f"(vs. {currency_symbol}{total_price:,.2f} with it included)"
+                )
+                if baggage_fee_source_url:
+                    st.caption(f"Baggage fee estimate source: [{baggage_fee_source_url}]({baggage_fee_source_url})")
+                else:
+                    st.caption("No baggage fee policy was found for this airline - the estimate defaults to 0 and isn't backed by a source.")
 
                 if not within_budget:
                     st.warning("This is the cheapest available combination, but it still exceeds your budget.")
@@ -406,6 +420,10 @@ if submit_button:
                 st.divider()
                 st.write(f"**Total Flight Cost ({travelers_input} Travelers, Round-Trip):** {currency_symbol}{flight_cost:,.2f}")
 
+                if flight_search_link:
+                    st.link_button("Search this route on Skyscanner", flight_search_link)
+                    st.caption("Opens a live search for this route and these dates - not a link to book this exact fare, which may have changed price.")
+
             with tab_hotel:
                 st.subheader("Accommodation")
 
@@ -425,6 +443,9 @@ if submit_button:
                     
                 st.divider()
                 st.write(f"**Total Hotel Cost:** {currency_symbol}{hotel_total_cost:,.2f}")
+
+                if hotel_booking_link:
+                    st.link_button("View this hotel on Booking.com", hotel_booking_link)
 
         else:
             raw_flights = output.get("raw_flight_data", [])
