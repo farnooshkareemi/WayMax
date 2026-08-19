@@ -31,9 +31,17 @@ def _get_collection():
 
 def retrieve_baggage_policy(airline_name: str) -> Optional[BaggagePolicyMatch]:
     """Retrieve the closest-matching baggage policy document for a given
-    airline name. Returns None if the collection is empty or airline_name is
-    falsy — callers should treat a None result as "no baggage cost data
-    available", not as an error."""
+    airline name. Returns None if the collection is empty, airline_name is
+    falsy, or the closest match is farther than config.rag.max_match_distance
+    away — callers should treat a None result as "no baggage cost data
+    available", not as an error.
+
+    Vector similarity search always returns the closest match in the
+    collection, however distant - without a threshold, an airline with no
+    real policy in the (currently 3-airline) knowledge base would silently
+    be assigned an unrelated airline's fees (e.g. "Turkish Airlines" matching
+    to Ryanair) instead of correctly reporting no match.
+    """
     if not airline_name:
         return None
 
@@ -46,11 +54,15 @@ def retrieve_baggage_policy(airline_name: str) -> Optional[BaggagePolicyMatch]:
     if not result["ids"] or not result["ids"][0]:
         return None
 
+    distance = result["distances"][0][0]
+    if distance > config.max_match_distance:
+        return None
+
     return BaggagePolicyMatch(
         airline=result["metadatas"][0][0]["airline"],
         text=result["documents"][0][0],
         source_url=result["metadatas"][0][0]["source_url"],
-        distance=result["distances"][0][0],
+        distance=distance,
     )
 
 

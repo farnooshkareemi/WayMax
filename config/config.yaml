@@ -41,6 +41,14 @@ rag:
   persist_directory: "src/rag/.chroma"
   collection_name: "baggage_fees"
   top_k: 1   # number of matching documents to retrieve per airline query
+  # Chroma's vector search always returns the *closest* match, even when
+  # nothing in the (currently 3-airline) knowledge base is actually close -
+  # e.g. an unrelated airline like "Turkish Airlines" was matching to
+  # Ryanair's policy. Empirically, genuine matches (exact/near-exact airline
+  # name) land around distance 0.55-0.62; unrelated airlines land at 0.79+.
+  # A match farther than this is rejected (treated as "no policy found")
+  # rather than confidently returned as a wrong answer.
+  max_match_distance: 0.70
 
 ui:
   page_title: "WayMax"

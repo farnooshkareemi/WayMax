@@ -33,6 +33,12 @@ def test_optimizer_section():
     assert optimizer.default_nights_fallback == 1
 
 
+def test_rag_section():
+    rag = load_config().rag
+    assert rag.top_k == 1
+    assert 0 < rag.max_match_distance < 2  # Chroma cosine distance sanity bound
+
+
 def test_ui_section_has_expected_ranges():
     ui = load_config().ui
     assert ui.budget.min == 100

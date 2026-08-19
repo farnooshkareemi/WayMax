@@ -66,6 +66,7 @@ class RAGConfig(BaseModel):
     persist_directory: str
     collection_name: str
     top_k: int
+    max_match_distance: float
 
 
 class RangeConfig(BaseModel):

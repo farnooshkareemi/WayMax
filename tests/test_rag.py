@@ -76,11 +76,19 @@ def test_estimate_checked_bag_fee_returns_a_plausible_number(temp_collection):
 
 
 def test_estimate_checked_bag_fee_unknown_airline_returns_none(temp_collection):
-    fee = estimate_checked_bag_fee("SomeAirlineNotInKnowledgeBase")
-    # Semantic search always returns the closest match even if it's a poor
-    # match, so this either returns a (weak) match or None if unparseable --
-    # both are acceptable; the real guarantee is that it never raises.
-    assert fee is None or isinstance(fee, float)
+    # Vector search would otherwise always return the closest of the 3
+    # knowledge-base airlines regardless of how distant the match actually
+    # is (this used to silently assign e.g. Turkish Airlines Ryanair's fees) -
+    # config.rag.max_match_distance rejects matches this far away.
+    fee = estimate_checked_bag_fee("Turkish Airlines")
+    assert fee is None
+
+
+def test_retrieve_baggage_policy_rejects_distant_matches(temp_collection):
+    """An airline genuinely unrelated to any of the 3 in the knowledge base
+    must return None, not the nearest (but wrong) airline's policy."""
+    assert retrieve_baggage_policy("Turkish Airlines") is None
+    assert retrieve_baggage_policy("Emirates") is None
 
 
 def test_estimate_checked_bag_fee_detailed_includes_source(temp_collection):
