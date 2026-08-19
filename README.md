@@ -71,6 +71,38 @@ cache guess which one the user meant, the Streamlit UI queries Booking.com's
 own Autocomplete endpoint live as the user types and lets them pick the exact
 match — so the `dest_id` used downstream is always correct, never inferred.
 
+## Repo structure
+
+```
+WayMax/
+├── src/
+│   ├── main.py                   # Builds and compiles the LangGraph StateGraph
+│   ├── state.py                  # WaymaxState - the schema every node reads/writes
+│   ├── config.py                 # Typed loader for config/config.yaml
+│   ├── metrics.py                # Per-run instrumentation (RunMetrics)
+│   ├── logging_config.py         # Central logging setup (WAYMAX_LOG_LEVEL)
+│   ├── agents/
+│   │   ├── supervisor.py         # LLM-based constraint extraction
+│   │   ├── sourcing.py           # Live flight/hotel API calls
+│   │   ├── rag.py                # Baggage-fee enrichment
+│   │   └── optimization.py       # Exhaustive cheapest-combination search
+│   ├── rag/
+│   │   ├── knowledge_base.py     # Builds/persists the Chroma vector store
+│   │   ├── retriever.py          # Query interface + match-distance filtering
+│   │   └── documents/
+│   │       └── baggage_fees.py   # Seed baggage-policy documents
+│   └── ui/
+│       └── app.py                # Streamlit front end
+├── scripts/
+│   └── metrics_report.py         # Aggregates outputs/metrics/*.json into a report
+├── tests/                        # One test file per src/ module, offline/mocked
+├── config/
+│   └── config.yaml               # Non-secret tunables (hosts, timeouts, UI defaults)
+├── .streamlit/
+│   └── config.toml               # Theme (light/dark palette), server settings
+└── outputs/metrics/              # RunMetrics JSON, one file per graph invocation
+```
+
 ## Shared state
 
 All four nodes read and write a single `TypedDict` — see
