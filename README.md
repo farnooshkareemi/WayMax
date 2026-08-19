@@ -62,6 +62,20 @@ cache hits vs. live lookups), and optimizer quality (combinations evaluated,
 best price found, whether it landed within budget). This is meant to make
 future performance/cost work measurable rather than guessed at.
 
+[`scripts/metrics_report.py`](scripts/metrics_report.py) aggregates every
+file in `outputs/metrics/` into a single report — per-node latency
+(avg/p50/p95), total LLM token usage, per-endpoint API failure and
+cache-hit rates, and the fraction of runs whose itinerary landed within
+budget:
+
+```bash
+python scripts/metrics_report.py
+```
+
+Run this after a handful of real invocations (via `python -m src.main` or
+the Streamlit UI) to see where pipeline time is actually going — in
+practice, the RAG node's embedding lookup has been the dominant cost.
+
 ## Installation
 
 ```bash
