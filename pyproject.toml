@@ -18,7 +18,6 @@ dependencies = [
     "PyYAML>=6.0.3",
     "requests>=2.34.2",
     "streamlit>=1.38",
-    "streamlit-star-rating>=0.0.5",
     "streamlit-searchbox>=0.1.13",
     "chromadb>=0.5",
     "sentence-transformers>=3.0",

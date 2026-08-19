@@ -6,7 +6,6 @@ import datetime
 import logging
 import requests
 import streamlit as st
-from streamlit_star_rating import st_star_rating
 from streamlit_searchbox import st_searchbox
 from langchain_core.messages import HumanMessage, AIMessage
 
@@ -312,7 +311,7 @@ if submit_button:
             hotel_address = hotel.get("address", "Location details unavailable")
             hotel_rating = hotel.get("rating", "N/A")
             room_type = hotel.get("room_type", "Standard Room")
-            
+
             duration = final_itinerary.get("nights_staying", "N/A")
             total_price = final_itinerary.get("total_price", 0.0)
             flight_cost = final_itinerary.get("flight_cost", 0.0)
@@ -347,7 +346,7 @@ if submit_button:
                     st.success("**Optimized Plan & Within Budget**")
                 else:
                     st.warning("**Exceeds Budget Constraint**")
-                
+
                 col_ov1, col_ov2, col_ov3 = st.columns(3)
                 col_ov1.metric("TOTAL COST", f"{currency_symbol}{total_price:,.2f}")
                 col_ov2.metric("FLIGHT COST", f"{currency_symbol}{flight_cost:,.2f}")
