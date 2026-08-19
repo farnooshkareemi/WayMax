@@ -93,39 +93,11 @@ st.set_page_config(page_title=ui_config.page_title, layout=ui_config.layout)
 # the one deliberate custom-CSS addition, scoped to the st-key-summary-card
 # class (Streamlit's own documented `key=` mechanism, not a guessed internal
 # testid) so it can't leak into or clash with any other component.
-#
-# Background illustration (src/ui/static/Pink.png, served via
-# server.enableStaticServing at app/static/Pink.png): applied to .stApp
-# behind a theme-matched gradient tint. Streamlit's light/dark toggle isn't
-# reliably targetable from custom CSS (it's set by the frontend bundle, not
-# a documented attribute), so rather than risk the image silently showing in
-# the wrong theme, it's blended under a tint using our own known theme
-# colors in both modes: a light, mostly-transparent pink wash in light mode
-# so the illustration stays visible, and a heavy navy wash in dark mode so
-# it reads as a faint texture rather than a mismatched light image on a dark
-# page.
 st.markdown(
     """
     <style>
     .st-key-summary-card {
         box-shadow: 0 6px 20px rgba(27, 38, 59, 0.10);
-    }
-
-    .stApp {
-        background-image:
-            linear-gradient(rgba(255, 243, 246, 0.55), rgba(255, 243, 246, 0.55)),
-            url("app/static/Pink.png");
-        background-size: cover;
-        background-position: center;
-        background-attachment: fixed;
-    }
-
-    @media (prefers-color-scheme: dark) {
-        .stApp {
-            background-image:
-                linear-gradient(rgba(27, 38, 59, 0.94), rgba(27, 38, 59, 0.94)),
-                url("app/static/Pink.png");
-        }
     }
     </style>
     """,
