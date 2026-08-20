@@ -10,6 +10,17 @@ narrow, single-responsibility agents — the kind of decomposition a real
 production system would use instead of asking one large model to parse
 intent, call APIs, and do budget math all in the same prompt.
 
+## Demo
+
+A real search (Milan → Paris) run against live flight and hotel data.
+
+| | |
+|---|---|
+| ![Search form](docs/screenshots/01-search-form.png) | ![Itinerary overview](docs/screenshots/02-results-overview.png) |
+| The search form, with the destination resolved via a live Booking.com Autocomplete lookup and filters (min stars, direct-only, max duration) collapsed by default. | The trip summary card plus the Itinerary Overview tab — cost broken down by flight/hotel/baggage, the total shown both with and without the RAG-estimated baggage fee, and a link to the exact source document that fee came from. |
+| ![Flight details](docs/screenshots/03-flight-details.png) | ![Hotel details](docs/screenshots/04-hotel-details.png) |
+| Outbound/return flight detail, with a constructed link to search that same route on Skyscanner. | Hotel detail, with a constructed link straight to that property's Booking.com page. |
+
 ## Architecture
 
 A [LangGraph](https://github.com/langchain-ai/langgraph) `StateGraph` runs
