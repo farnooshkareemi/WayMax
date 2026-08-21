@@ -12,6 +12,8 @@ intent, call APIs, and do budget math all in the same prompt.
 
 ## Demo
 
+[**Watch the full demo on YouTube**](https://youtu.be/0Mzt3L8Ieqc) — a live walkthrough of the app end to end.
+
 A real search (Milan → Paris) run against live flight and hotel data.
 
 | | |

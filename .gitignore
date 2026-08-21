@@ -9,3 +9,5 @@ build/
 CLAUDE.md
 outputs/metrics/*.json
 src/rag/.chroma/
+docs/interview-prep.md
+docs/interview-prep.pdf
