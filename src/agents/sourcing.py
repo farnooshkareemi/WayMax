@@ -293,6 +293,23 @@ def sourcing_node(state: Dict[str, Any]) -> Dict[str, Any]:
                         properties = hotel_json.get(key)
                         break
 
+            def _property_price(prop: dict) -> float:
+                """Sort key: missing/malformed prices sort last (float('inf')),
+                never first, so they can't crowd out real candidates below the
+                result_limit truncation."""
+                try:
+                    return float(prop.get("priceBreakdown", {}).get("grossPrice", {}).get("value", 0.0)) or float("inf")
+                except (TypeError, ValueError):
+                    return float("inf")
+
+            # Unlike the Skyscanner flights endpoint (already price-sorted
+            # ascending server-side, verified live), Booking.com's hotel search
+            # returns its own relevance ranking, not price order - sorting here
+            # before the result_limit truncation below ensures the optimizer
+            # actually evaluates the cheapest candidates, not whichever 5
+            # happened to rank highest by Booking.com's own criteria.
+            properties = sorted(properties, key=_property_price)
+
             # --- FILTER HOTELS DYNAMICALLY ---
             for prop in properties:
                 if len(raw_hotel_data) >= config.hotels.result_limit:

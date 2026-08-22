@@ -119,6 +119,48 @@ def test_hotel_booking_link_is_none_when_property_has_no_id(mock_hotel_autocompl
     assert out["raw_hotel_data"][0]["booking_link"] is None
 
 
+def test_hotels_are_sorted_by_price_before_truncating_to_result_limit(mock_flight_response, mock_hotel_autocomplete_response):
+    """Booking.com's hotel search does not return results in price order
+    (verified against the live API - it's the provider's own relevance
+    ranking), unlike Skyscanner's flights endpoint, which is already
+    price-sorted ascending. Without sorting hotels first, truncating to
+    result_limit could keep 5 expensive properties and discard cheaper ones
+    that happened to rank lower in Booking.com's own ordering."""
+    scrambled_price_hotels = MagicMock(status_code=200)
+    scrambled_price_hotels.raise_for_status = lambda: None
+    scrambled_price_hotels.json = lambda: {
+        "data": [
+            {"id": 1, "name": "Expensive A", "propertyClass": 4, "priceBreakdown": {"grossPrice": {"value": 900}}},
+            {"id": 2, "name": "Cheapest", "propertyClass": 3, "priceBreakdown": {"grossPrice": {"value": 100}}},
+            {"id": 3, "name": "Expensive B", "propertyClass": 4, "priceBreakdown": {"grossPrice": {"value": 800}}},
+            {"id": 4, "name": "Mid A", "propertyClass": 3, "priceBreakdown": {"grossPrice": {"value": 300}}},
+            {"id": 5, "name": "Expensive C", "propertyClass": 4, "priceBreakdown": {"grossPrice": {"value": 700}}},
+            {"id": 6, "name": "Mid B", "propertyClass": 3, "priceBreakdown": {"grossPrice": {"value": 400}}},
+            {"id": 7, "name": "Mid C", "propertyClass": 3, "priceBreakdown": {"grossPrice": {"value": 500}}},
+        ]
+    }
+
+    def _fake_get(url, headers=None, params=None, timeout=None):
+        if "skyscanner" in url:
+            return mock_flight_response
+        if "autocomplete" in url:
+            return mock_hotel_autocomplete_response
+        return scrambled_price_hotels
+
+    with patch("src.agents.sourcing.requests.get", side_effect=_fake_get):
+        out = sourcing_node({
+            "origin": "LHR", "destination": "JFK",
+            "travel_dates": "2026-09-20 to 2026-09-25",
+        })
+
+    # result_limit is 5 - must be the 5 *cheapest* (100, 300, 400, 500, 700),
+    # not the first 5 encountered in the API's own scrambled order.
+    names_kept = [h["name"] for h in out["raw_hotel_data"]]
+    assert names_kept == ["Cheapest", "Mid A", "Mid B", "Mid C", "Expensive C"]
+    assert "Expensive A" not in names_kept
+    assert "Expensive B" not in names_kept
+
+
 def test_hotel_dest_id_short_circuits_autocomplete(mock_requests_get):
     """When the UI has already resolved hotel_dest_id, sourcing_node must use it
     directly and never call the Autocomplete endpoint."""
